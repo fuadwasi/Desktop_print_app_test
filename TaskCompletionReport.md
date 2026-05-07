@@ -11,7 +11,7 @@
 | Pre | Add `.gitignore` & initialize repo | ✅ Done |
 | 1.1 | Initialize WPF Application (.NET 9.0) | ✅ Done |
 | 1.2 | Configure Dependency Injection (DI Host) | ✅ Done |
-| 1.3 | Setup Serilog Logging | ⏳ Pending |
+| 1.3 | Setup Serilog Logging | ✅ Done |
 | 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ⏳ Pending |
 | 2.x | UI Design & MVVM Plumbing | ⏳ Pending |
 | 3.x | Printer Discovery & Selection | ⏳ Pending |
@@ -77,13 +77,13 @@ Repository is clean, structured, and ready for development to begin.
 
 ### Task 1.3 – Setup Serilog Logging
 
-**Date:** ⏳ Pending
-**Commit:** –
+**Date:** 2026-05-07
+**Commit:** `task-1.3`
 
 #### Work Done
-- [ ] Added `Serilog`, `Serilog.Extensions.Hosting`, `Serilog.Sinks.File`, `Serilog.Sinks.Debug` NuGet packages.
-- [ ] Configured rolling file sink writing to `%LOCALAPPDATA%\PrintDesktopClient\logs\`.
-- [ ] Integrated Serilog with the DI host via `UseSerilog()`.
+- [x] Added `Serilog`, `Serilog.Extensions.Hosting`, `Serilog.Sinks.File`, `Serilog.Sinks.Debug` NuGet packages.
+- [x] Configured rolling file sink writing to `%LOCALAPPDATA%\PrintDesktopClient\logs\`.
+- [x] Integrated Serilog with the DI host via `UseSerilog()`.
 
 #### Notes
 –

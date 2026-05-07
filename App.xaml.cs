@@ -2,6 +2,8 @@ using System.Configuration;
 using System.Data;
 using System.Windows;
 using Microsoft.Extensions.Hosting;
+using Serilog;
+using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using PrintDesktopClient.Services;
 using PrintDesktopClient.ViewModels;
@@ -17,7 +19,14 @@ public partial class App : Application
 
     public App()
     {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Debug()
+            .WriteTo.File(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PrintDesktopClient", "logs", "log.txt"), rollingInterval: RollingInterval.Day)
+            .CreateLogger();
+
         AppHost = Host.CreateDefaultBuilder()
+            .UseSerilog()
             .ConfigureServices((hostContext, services) =>
             {
                 // ViewModels
