@@ -9,7 +9,7 @@
 | Phase | Description | Status |
 | :---: | :--- | :---: |
 | Pre | Add `.gitignore` & initialize repo | ✅ Done |
-| 1.1 | Initialize WPF Application (.NET 9.0) | ⏳ Pending |
+| 1.1 | Initialize WPF Application (.NET 9.0) | ✅ Done |
 | 1.2 | Configure Dependency Injection (DI Host) | ⏳ Pending |
 | 1.3 | Setup Serilog Logging | ⏳ Pending |
 | 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ⏳ Pending |
@@ -46,13 +46,13 @@ Repository is clean, structured, and ready for development to begin.
 
 ### Task 1.1 – Initialize WPF Application (.NET 9.0)
 
-**Date:** ⏳ Pending
-**Commit:** –
+**Date:** 2026-05-07
+**Commit:** `task-1.1`
 
 #### Work Done
-- [ ] Created a new WPF Application project targeting `net9.0-windows`.
-- [ ] Verified the solution file and project structure.
-- [ ] Confirmed successful build.
+- [x] Created a new WPF Application project targeting `net9.0-windows`.
+- [x] Verified the solution file and project structure.
+- [x] Confirmed successful build.
 
 #### Notes
 –
