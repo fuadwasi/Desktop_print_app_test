@@ -1,0 +1,141 @@
+## .gitignore for .NET 9.0 WPF Desktop Application
+## Reference: https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
+
+# ========================
+# Build Outputs
+# ========================
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# ========================
+# Visual Studio Files
+# ========================
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# ========================
+# NuGet
+# ========================
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ========================
+# MSBuild
+# ========================
+project.assets.json
+
+# ========================
+# Roslyn / Analyzers
+# ========================
+*.aps
+*.pch
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# ========================
+# Publish Profiles
+# ========================
+*.[Pp]ublish.xml
+*.azurePubxml
+*.pubxml
+*.publishproj
+
+# ========================
+# Test Results
+# ========================
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
+# ========================
+# Coverage
+# ========================
+*.coverage
+*.coveragexml
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+# ========================
+# Rider / JetBrains IDEs
+# ========================
+.idea/
+*.sln.iml
+
+# ========================
+# Crash / Dump Files
+# ========================
+*.dmp
+*.mdmp
+
+# ========================
+# Windows specific
+# ========================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# ========================
+# OS Generated Files
+# ========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# ========================
+# Application Specific
+# ========================
+# Local app data / logs generated at runtime
+AppData/
+*.log
+*.serilog
+
+# Sensitive configuration (never commit credentials)
+appsettings.Local.json
+appsettings.Development.json
+secrets.json
+
+# ========================
+# dotnet tools
+# ========================
+.dotnet/
+.tool-versions
