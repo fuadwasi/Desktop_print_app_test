@@ -12,7 +12,7 @@
 | 1.1 | Initialize WPF Application (.NET 9.0) | ✅ Done |
 | 1.2 | Configure Dependency Injection (DI Host) | ✅ Done |
 | 1.3 | Setup Serilog Logging | ✅ Done |
-| 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ⏳ Pending |
+| 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ✅ Done |
 | 2.x | UI Design & MVVM Plumbing | ⏳ Pending |
 | 3.x | Printer Discovery & Selection | ⏳ Pending |
 | 4.x | Document Printing Pipeline (Continuous Loop) | ⏳ Pending |
@@ -92,13 +92,13 @@ Repository is clean, structured, and ready for development to begin.
 
 ### Task 1.4 – Implement `ConfigurationService` (Secure Settings)
 
-**Date:** ⏳ Pending
-**Commit:** –
+**Date:** 2026-05-07
+**Commit:** `task-1.4`
 
 #### Work Done
-- [ ] Created `appsettings.json` with MQTT broker settings (non-sensitive keys only).
-- [ ] Implemented `ConfigurationService` using Windows DPAPI (`System.Security.Cryptography.ProtectedData`) for encrypting `mqttpass` at rest.
-- [ ] Registered `ConfigurationService` as a singleton in the DI container.
+- [x] Created `appsettings.json` with MQTT broker settings (non-sensitive keys only).
+- [x] Implemented `ConfigurationService` using Windows DPAPI (`System.Security.Cryptography.ProtectedData`) for encrypting `mqttpass` at rest.
+- [x] Registered `ConfigurationService` as a singleton in the DI container.
 
 #### Notes
 –
