@@ -10,7 +10,7 @@
 | :---: | :--- | :---: |
 | Pre | Add `.gitignore` & initialize repo | ✅ Done |
 | 1.1 | Initialize WPF Application (.NET 9.0) | ✅ Done |
-| 1.2 | Configure Dependency Injection (DI Host) | ⏳ Pending |
+| 1.2 | Configure Dependency Injection (DI Host) | ✅ Done |
 | 1.3 | Setup Serilog Logging | ⏳ Pending |
 | 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ⏳ Pending |
 | 2.x | UI Design & MVVM Plumbing | ⏳ Pending |
@@ -61,14 +61,14 @@ Repository is clean, structured, and ready for development to begin.
 
 ### Task 1.2 – Configure Dependency Injection (Generic Host)
 
-**Date:** ⏳ Pending
-**Commit:** –
+**Date:** 2026-05-07
+**Commit:** `task-1.2`
 
 #### Work Done
-- [ ] Added `Microsoft.Extensions.Hosting` NuGet package.
-- [ ] Bootstrapped `IHost` inside `App.xaml.cs` using `Host.CreateDefaultBuilder()`.
-- [ ] Registered all services (`PrinterService`, `MqttListenerService`, etc.) with appropriate lifetimes.
-- [ ] Wired `MainWindow` and `MainViewModel` through the DI container.
+- [x] Added `Microsoft.Extensions.Hosting` NuGet package.
+- [x] Bootstrapped `IHost` inside `App.xaml.cs` using `Host.CreateDefaultBuilder()`.
+- [x] Registered all services (`PrinterService`, `MqttListenerService`, etc.) with appropriate lifetimes.
+- [x] Wired `MainWindow` and `MainViewModel` through the DI container.
 
 #### Notes
 –
