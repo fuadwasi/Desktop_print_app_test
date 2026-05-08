@@ -39,13 +39,14 @@
         </materialDesign:Card>
 
         <!-- Drop Zone -->
-        <materialDesign:Card Grid.Row="1" Margin="0,0,0,15" materialDesign:ElevationAssist.Elevation="Dp1" UniformCornerRadius="8">
+        <materialDesign:Card Grid.Row="1" Margin="0,0,0,15" materialDesign:ElevationAssist.Elevation="Dp1" UniformCornerRadius="8"
+                             AllowDrop="True" Drop="DropZone_Drop">
             <Border BorderThickness="1" BorderBrush="{DynamicResource PrimaryHueMidBrush}" CornerRadius="8">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <materialDesign:PackIcon Kind="CloudUpload" Width="64" Height="64" HorizontalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
                     <TextBlock Text="Drag and drop documents here to print" FontSize="20" FontWeight="Light" Margin="0,15,0,5"/>
                     <TextBlock Text="PDF, Image, or Text files are supported" FontSize="14" Opacity="0.6" HorizontalAlignment="Center" Margin="0,0,0,25"/>
-                    <Button Content="BROWSE FILES" Style="{StaticResource MaterialDesignRaisedButton}" Width="180" Height="45" materialDesign:ButtonAssist.CornerRadius="22"/>
+                    <Button Content="BROWSE FILES" Command="{Binding BrowseAndPrintCommand}" Style="{StaticResource MaterialDesignRaisedButton}" Width="180" Height="45" materialDesign:ButtonAssist.CornerRadius="22"/>
                 </StackPanel>
             </Border>
         </materialDesign:Card>

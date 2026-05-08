@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using PrintDesktopClient.Services;
 using System.Linq;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace PrintDesktopClient.ViewModels
 {
@@ -61,6 +63,46 @@ namespace PrintDesktopClient.ViewModels
             }
             
             Logs.Add($"Refreshed printer list. Found {printers.Count} printers.");
+        }
+
+        [RelayCommand]
+        public async Task BrowseAndPrint()
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Supported Files (*.pdf;*.txt;*.jpg;*.png;*.docx)|*.pdf;*.txt;*.jpg;*.png;*.docx|All Files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                StatusText = "Printing...";
+                await Task.Run(() => PrintFile(dialog.FileName));
+                StatusText = "Ready";
+            }
+        }
+
+        public void PrintFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(SelectedPrinter))
+            {
+                App.Current.Dispatcher.Invoke(() => Logs.Add("Error: No printer selected."));
+                return;
+            }
+
+            App.Current.Dispatcher.Invoke(() => Logs.Add($"Queueing: {Path.GetFileName(filePath)}"));
+            
+            bool success = _printerService.PrintFile(filePath, SelectedPrinter);
+            
+            App.Current.Dispatcher.Invoke(() => {
+                if (success)
+                {
+                    Logs.Add($"Success: {Path.GetFileName(filePath)} sent to printer.");
+                }
+                else
+                {
+                    Logs.Add($"Failure: Could not print {Path.GetFileName(filePath)}.");
+                }
+            });
         }
 
         partial void OnSelectedPrinterChanged(string value)

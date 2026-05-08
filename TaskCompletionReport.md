@@ -17,7 +17,7 @@
 | 2.2 | Design Main Window Layout | ✅ Done |
 | 2.3 | Implement modern UI Theme | ✅ Done |
 | 3.1 | Printer Discovery & Selection Service | ✅ Done |
-| 4.x | Document Printing Pipeline (Continuous Loop) | ⏳ Pending |
+| 4.1 | Document Printing Pipeline | ✅ Done |
 | 5.x | MQTT Integration | ⏳ Pending |
 | 6.x | Notification & Error Handling | ⏳ Pending |
 | 7.x | Testing | ⏳ Pending |
@@ -176,6 +176,29 @@ Repository is clean, structured, and ready for development to begin.
 - [x] Integrated `PrinterService` into `MainViewModel`.
 - [x] Added `RefreshPrintersCommand` to update list dynamically.
 - [x] Implemented persistence of selected printer via `ConfigurationService`.
+
+#### Notes
+–
+
+---
+
+---
+
+## Phase 4 – Document Printing Pipeline
+
+---
+
+### Task 4.1 – Document Printing Pipeline
+
+**Date:** 2026-05-08
+**Commit:** `task-4.1`
+
+#### Work Done
+- [x] Implemented `PrintFile` method in `PrinterService` using `ProcessStartInfo` (PrintTo/Print verbs).
+- [x] Added `BrowseAndPrintCommand` to `MainViewModel` using `OpenFileDialog`.
+- [x] Implemented Drag and Drop support in `MainWindow` UI with asynchronous processing.
+- [x] Ensured UI responsiveness during print operations using `Task.Run` and Dispatcher updates.
+- [x] Implemented success/failure logging for manual print jobs.
 
 #### Notes
 –
