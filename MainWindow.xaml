@@ -34,7 +34,7 @@
                           materialDesign:HintAssist.Hint="Select a printer"
                           Width="350" Margin="0,0,15,0"
                           Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
-                <Button Content="REFRESH" Style="{StaticResource MaterialDesignFlatButton}" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                <Button Content="REFRESH" Command="{Binding RefreshPrintersCommand}" Style="{StaticResource MaterialDesignFlatButton}" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
             </StackPanel>
         </materialDesign:Card>
 

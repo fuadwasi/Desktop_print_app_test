@@ -16,7 +16,7 @@
 | 2.1 | Install MVVM Toolkit & Setup MainViewModel | ✅ Done |
 | 2.2 | Design Main Window Layout | ✅ Done |
 | 2.3 | Implement modern UI Theme | ✅ Done |
-| 3.x | Printer Discovery & Selection | ⏳ Pending |
+| 3.1 | Printer Discovery & Selection Service | ✅ Done |
 | 4.x | Document Printing Pipeline (Continuous Loop) | ⏳ Pending |
 | 5.x | MQTT Integration | ⏳ Pending |
 | 6.x | Notification & Error Handling | ⏳ Pending |
@@ -153,6 +153,29 @@ Repository is clean, structured, and ready for development to begin.
 - [x] Configured MaterialDesign resources in `App.xaml`.
 - [x] Enhanced `MainWindow.xaml` with MaterialDesign Cards, Icons, and Buttons.
 - [x] Set up typography and color palette (Primary: Blue, Secondary: Lime).
+
+#### Notes
+–
+
+---
+
+---
+
+## Phase 3 – Printer Discovery & Selection
+
+---
+
+### Task 3.1 – Printer Discovery & Selection Service
+
+**Date:** 2026-05-08
+**Commit:** `task-3.1`
+
+#### Work Done
+- [x] Installed `System.Drawing.Common` for printer access.
+- [x] Implemented `PrinterService.GetAvailablePrinters()`.
+- [x] Integrated `PrinterService` into `MainViewModel`.
+- [x] Added `RefreshPrintersCommand` to update list dynamically.
+- [x] Implemented persistence of selected printer via `ConfigurationService`.
 
 #### Notes
 –
