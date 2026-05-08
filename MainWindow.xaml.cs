@@ -2,6 +2,7 @@ using System.Windows;
 using PrintDesktopClient.ViewModels;
 using System.Threading.Tasks;
 using System;
+using System.Drawing;
 
 namespace PrintDesktopClient
 {
@@ -14,6 +15,26 @@ namespace PrintDesktopClient
         {
             InitializeComponent();
             DataContext = viewModel;
+
+            // Ensure the icon is set after the window is loaded
+            this.Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Use a standard system icon as a reliable source
+                MyNotifyIcon.Icon = SystemIcons.Information;
+                
+                // Force visibility just in case
+                MyNotifyIcon.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                var viewModel = (MainViewModel)DataContext;
+                viewModel.Logs.Add($"Tray Icon Error: {ex.Message}");
+            }
         }
 
         private async void DropZone_Drop(object sender, DragEventArgs e)
@@ -35,6 +56,9 @@ namespace PrintDesktopClient
             {
                 this.Hide();
                 this.ShowInTaskbar = false;
+                
+                var viewModel = (MainViewModel)DataContext;
+                viewModel.Logs.Add("App minimized to tray.");
             }
         }
 

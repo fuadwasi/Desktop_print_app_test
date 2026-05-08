@@ -34,9 +34,18 @@ namespace PrintDesktopClient.Services
 
         public async Task InitializeClientAsync()
         {
+            _logger.LogInformation("Initializing/Restarting MQTT Client...");
+            
             if (_mqttClient != null)
             {
-                await _mqttClient.StopAsync();
+                try
+                {
+                    await _mqttClient.StopAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error stopping MQTT client during re-initialization.");
+                }
             }
 
             var mqttFactory = new MqttFactory();
@@ -91,12 +100,9 @@ namespace PrintDesktopClient.Services
 
         public async Task ManualConnectAsync()
         {
-            _logger.LogInformation("Manual MQTT connection triggered.");
-            if (_mqttClient != null)
-            {
-                // Managed client StartAsync ensures it's trying to connect
-                await _mqttClient.StartAsync(_mqttClient.Options);
-            }
+            // Instead of just calling StartAsync, we re-initialize to ensure a fresh connection
+            // and avoid "Managed client is already started" exception.
+            await InitializeClientAsync();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

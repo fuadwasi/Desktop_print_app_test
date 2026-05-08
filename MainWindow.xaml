@@ -21,24 +21,10 @@
     <Grid>
         <!-- Tray Icon -->
         <tb:TaskbarIcon x:Name="MyNotifyIcon"
+                        Visibility="Visible"
                         ToolTipText="Auto-Print Agent"
                         MenuActivation="LeftOrRightClick"
                         TrayMouseDoubleClick="MyNotifyIcon_TrayMouseDoubleClick">
-            <tb:TaskbarIcon.IconSource>
-                <!-- Using a built-in icon or a simple geometry if needed. 
-                     For now, we'll assume a default or simple path -->
-                <DrawingImage>
-                    <DrawingImage.Drawing>
-                        <GeometryDrawing Brush="{DynamicResource PrimaryHueMidBrush}">
-                            <GeometryDrawing.Geometry>
-                                <GeometryGroup>
-                                    <PathGeometry Figures="M19,8H5V19H19V8M17,17H7V10H17V17M17,2H7V5H17V2M21,7V20H3V7H21Z" />
-                                </GeometryGroup>
-                            </GeometryDrawing.Geometry>
-                        </GeometryDrawing>
-                    </DrawingImage.Drawing>
-                </DrawingImage>
-            </tb:TaskbarIcon.IconSource>
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Open Dashboard" Click="Open_Click">

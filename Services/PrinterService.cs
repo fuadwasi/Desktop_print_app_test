@@ -1,10 +1,13 @@
 using System.Collections.Generic;
-using System.Drawing.Printing;
 using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System;
-using System.Drawing;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows;
+using System.Windows.Media;
+using System.Printing;
 
 namespace PrintDesktopClient.Services
 {
@@ -14,11 +17,13 @@ namespace PrintDesktopClient.Services
         {
             try
             {
-                return PrinterSettings.InstalledPrinters.Cast<string>().ToList();
+                var printServer = new PrintServer();
+                return printServer.GetPrintQueues().Select(q => q.FullName).ToList();
             }
             catch
             {
-                return new List<string>();
+                // Fallback to older method if PrintServer fails
+                return System.Drawing.Printing.PrinterSettings.InstalledPrinters.Cast<string>().ToList();
             }
         }
 
@@ -38,9 +43,12 @@ namespace PrintDesktopClient.Services
                     UseShellExecute = true
                 };
 
-                try {
+                try 
+                {
                     Process.Start(psi);
-                } catch {
+                } 
+                catch 
+                {
                     psi.Verb = "Print";
                     psi.Arguments = "";
                     Process.Start(psi);
@@ -57,32 +65,77 @@ namespace PrintDesktopClient.Services
 
         public bool PrintText(string text, string printerName)
         {
-            try
+            // We use the WPF Dispatcher to ensure the PrintDialog and FlowDocument 
+            // are created on a UI-compatible thread if necessary, though usually 
+            // this is called from the UI or a background thread handled by the ViewModel.
+            bool success = false;
+            
+            // Use Application Dispatcher to ensure we are on the right thread for WPF UI objects
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                if (string.IsNullOrEmpty(printerName)) return false;
-
-                using (var pd = new PrintDocument())
+                try
                 {
-                    pd.PrinterSettings.PrinterName = printerName;
-                    pd.PrintPage += (sender, e) =>
+                    if (string.IsNullOrEmpty(printerName)) return;
+
+                    // 1. Create a FlowDocument (Our "Virtual Document")
+                    var doc = new FlowDocument();
+                    doc.PagePadding = new Thickness(50);
+                    doc.ColumnWidth = double.PositiveInfinity; // Prevent multi-column layout
+                    doc.FontFamily = new FontFamily("Segoe UI");
+
+                    // Add Header
+                    var header = new Paragraph(new Run("MQTT INCOMING MESSAGE"))
                     {
-                        using (var font = new Font("Arial", 12))
-                        {
-                            var brush = Brushes.Black;
-                            var rect = e.MarginBounds;
-                            
-                            e.Graphics.DrawString(text, font, brush, rect);
-                        }
+                        FontSize = 20,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = Brushes.DarkSlateBlue,
+                        Margin = new Thickness(0, 0, 0, 10)
                     };
-                    pd.Print();
+                    doc.Blocks.Add(header);
+
+                    // Add Timestamp
+                    var meta = new Paragraph(new Run($"Received at: {DateTime.Now:F}"))
+                    {
+                        FontSize = 10,
+                        FontStyle = FontStyles.Italic,
+                        Foreground = Brushes.Gray,
+                        Margin = new Thickness(0, 0, 0, 20)
+                    };
+                    doc.Blocks.Add(meta);
+
+                    // Add Message Content
+                    var content = new Paragraph(new Run(text))
+                    {
+                        FontSize = 13,
+                        LineHeight = 1.5
+                    };
+                    doc.Blocks.Add(content);
+
+                    // 2. Setup PrintDialog for Silent Printing
+                    var printDialog = new PrintDialog();
+                    
+                    // Look up the specific printer queue
+                    var printServer = new PrintServer();
+                    var queue = printServer.GetPrintQueue(printerName);
+                    
+                    if (queue != null)
+                    {
+                        printDialog.PrintQueue = queue;
+                        
+                        // 3. Print the document silently
+                        var paginator = ((IDocumentPaginatorSource)doc).DocumentPaginator;
+                        printDialog.PrintDocument(paginator, $"MQTT_Print_{DateTime.Now.Ticks}");
+                        success = true;
+                    }
                 }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Text printing failed: {ex.Message}");
-                return false;
-            }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"WPF Printing failed: {ex.Message}");
+                    success = false;
+                }
+            });
+
+            return success;
         }
     }
 }
