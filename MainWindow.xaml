@@ -1,12 +1,71 @@
-﻿<Window x:Class="PrintDesktopClient.MainWindow"
+<Window x:Class="PrintDesktopClient.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PrintDesktopClient"
+        xmlns:vm="clr-namespace:PrintDesktopClient.ViewModels"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="Auto-Print Agent" Height="650" Width="900"
+        Background="#F0F2F5">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Header/Printer Selection -->
+            <RowDefinition Height="*"/>    <!-- Drop Zone -->
+            <RowDefinition Height="200"/>  <!-- Logs -->
+            <RowDefinition Height="Auto"/> <!-- Status Bar -->
+        </Grid.RowDefinitions>
 
+        <!-- Printer Selection -->
+        <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Selected Printer:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
+                <ComboBox ItemsSource="{Binding AvailablePrinters}" 
+                          SelectedItem="{Binding SelectedPrinter}" 
+                          Width="350" Margin="0,0,10,0"
+                          VerticalContentAlignment="Center"/>
+                <Button Content="Refresh List" Padding="15,5" Background="#0078D4" Foreground="White" BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Drop Zone -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" BorderThickness="2" BorderBrush="#D1D5DB" Margin="0,0,0,15" AllowDrop="True">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="📄" FontSize="64" HorizontalAlignment="Center" Foreground="#9CA3AF"/>
+                <TextBlock Text="Drag and drop documents here to print" FontSize="18" Foreground="#4B5563" Margin="0,10,0,10"/>
+                <TextBlock Text="Supports PDF, TXT, and Images" FontSize="12" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                <Button Content="Browse Files" HorizontalAlignment="Center" Padding="25,10" Background="#10B981" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Logs -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="System Activity" FontWeight="Bold" Foreground="#374151" Margin="0,0,0,5"/>
+                <ListBox ItemsSource="{Binding Logs}" BorderThickness="0" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontSize="12" FontFamily="Consolas" Foreground="#1F2937" Margin="0,2"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="3" Background="Transparent" Padding="0">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="10" Height="10" Fill="#EF4444" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="MQTT Broker: " Foreground="#4B5563"/>
+                    <TextBlock Text="{Binding MqttStatus}" FontWeight="Bold" Foreground="#111827"/>
+                </StackPanel>
+            </StatusBarItem>
+            <Separator Margin="10,0"/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusText}" Foreground="#4B5563"/>
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>

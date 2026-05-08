@@ -14,7 +14,7 @@
 | 1.3 | Setup Serilog Logging | ✅ Done |
 | 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ✅ Done |
 | 2.1 | Install MVVM Toolkit & Setup MainViewModel | ✅ Done |
-| 2.2 | Design Main Window Layout | ⏳ Pending |
+| 2.2 | Design Main Window Layout | ✅ Done |
 | 2.3 | Implement modern UI Theme | ⏳ Pending |
 | 3.x | Printer Discovery & Selection | ⏳ Pending |
 | 4.x | Document Printing Pipeline (Continuous Loop) | ⏳ Pending |
@@ -131,12 +131,12 @@ Repository is clean, structured, and ready for development to begin.
 
 ### Task 2.2 – Design Main Window Layout
 
-**Date:** ⏳ Pending
-**Commit:** –
+**Date:** 2026-05-08
+**Commit:** `task-2.2`
 
 #### Work Done
-- [ ] Implement XAML for printer selection, document drop zone, and log display.
-- [ ] Bind UI elements to `MainViewModel`.
+- [x] Implement XAML for printer selection, document drop zone, and log display.
+- [x] Bind UI elements to `MainViewModel`.
 
 #### Notes
 –
