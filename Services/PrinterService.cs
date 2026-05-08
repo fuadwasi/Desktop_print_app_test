@@ -4,6 +4,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System;
+using System.Drawing;
 
 namespace PrintDesktopClient.Services
 {
@@ -27,21 +28,16 @@ namespace PrintDesktopClient.Services
             {
                 if (string.IsNullOrEmpty(printerName)) return false;
 
-                // Set default printer temporarily or rely on default app behavior
-                // Usually "Print" verb uses default printer. 
-                // To print to a specific printer, we might need a library or winspool.drv
-                
                 var psi = new ProcessStartInfo
                 {
                     FileName = filePath,
-                    Verb = "PrintTo", // PrintTo allows specifying the printer as an argument in some apps
+                    Verb = "PrintTo",
                     Arguments = $"\"{printerName}\"",
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden,
                     UseShellExecute = true
                 };
 
-                // Fallback to "Print" if "PrintTo" isn't supported, but "Print" uses system default
                 try {
                     Process.Start(psi);
                 } catch {
@@ -55,6 +51,36 @@ namespace PrintDesktopClient.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"Printing failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool PrintText(string text, string printerName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(printerName)) return false;
+
+                using (var pd = new PrintDocument())
+                {
+                    pd.PrinterSettings.PrinterName = printerName;
+                    pd.PrintPage += (sender, e) =>
+                    {
+                        using (var font = new Font("Arial", 12))
+                        {
+                            var brush = Brushes.Black;
+                            var rect = e.MarginBounds;
+                            
+                            e.Graphics.DrawString(text, font, brush, rect);
+                        }
+                    };
+                    pd.Print();
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Text printing failed: {ex.Message}");
                 return false;
             }
         }

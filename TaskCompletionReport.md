@@ -18,7 +18,7 @@
 | 2.3 | Implement modern UI Theme | ✅ Done |
 | 3.1 | Printer Discovery & Selection Service | ✅ Done |
 | 4.1 | Document Printing Pipeline | ✅ Done |
-| 5.x | MQTT Integration | ⏳ Pending |
+| 5.1 | MQTT Integration Service | ✅ Done |
 | 6.x | Notification & Error Handling | ⏳ Pending |
 | 7.x | Testing | ⏳ Pending |
 | 8.x | Packaging & Deployment | ⏳ Pending |
@@ -199,6 +199,29 @@ Repository is clean, structured, and ready for development to begin.
 - [x] Implemented Drag and Drop support in `MainWindow` UI with asynchronous processing.
 - [x] Ensured UI responsiveness during print operations using `Task.Run` and Dispatcher updates.
 - [x] Implemented success/failure logging for manual print jobs.
+
+#### Notes
+–
+
+---
+
+---
+
+## Phase 5 – MQTT Integration
+
+---
+
+### Task 5.1 – MQTT Integration Service
+
+**Date:** 2026-05-08
+**Commit:** `task-5.1`
+
+#### Work Done
+- [x] Installed `MQTTnet` and `MQTTnet.Extensions.ManagedClient` (v4.3.7).
+- [x] Implemented `MqttListenerService` with managed client support and auto-reconnect.
+- [x] Integrated MQTT events (`Connected`, `Disconnected`, `MessageReceived`) into the UI.
+- [x] Implemented `PrinterService.PrintText` for raw text printing with layout.
+- [x] Configured automatic printing of incoming MQTT payloads to the selected printer.
 
 #### Notes
 –

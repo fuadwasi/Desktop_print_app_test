@@ -38,6 +38,7 @@ public partial class App : Application
                 // Services
                 services.AddSingleton<PrinterService>();
                 services.AddSingleton<MqttListenerService>();
+                services.AddHostedService<MqttListenerService>(provider => provider.GetRequiredService<MqttListenerService>());
                 services.AddSingleton<DocumentProcessingService>();
                 services.AddSingleton<NotificationService>();
                 services.AddSingleton<ConfigurationService>();

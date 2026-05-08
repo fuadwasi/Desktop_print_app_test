@@ -5,6 +5,7 @@ using PrintDesktopClient.Services;
 using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
+using System;
 
 namespace PrintDesktopClient.ViewModels
 {
@@ -12,6 +13,7 @@ namespace PrintDesktopClient.ViewModels
     {
         private readonly PrinterService _printerService;
         private readonly ConfigurationService _configurationService;
+        private readonly MqttListenerService _mqttService;
 
         [ObservableProperty]
         private string _statusText = "Ready";
@@ -25,10 +27,19 @@ namespace PrintDesktopClient.ViewModels
         public ObservableCollection<string> AvailablePrinters { get; } = new();
         public ObservableCollection<string> Logs { get; } = new();
 
-        public MainViewModel(PrinterService printerService, ConfigurationService configurationService)
+        public MainViewModel(PrinterService printerService, ConfigurationService configurationService, MqttListenerService mqttService)
         {
             _printerService = printerService;
             _configurationService = configurationService;
+            _mqttService = mqttService;
+
+            _mqttService.OnMessageReceived += msg => {
+                App.Current.Dispatcher.Invoke(() => Logs.Add($"MQTT Job: {msg}"));
+            };
+
+            _mqttService.StatusChanged += status => {
+                App.Current.Dispatcher.Invoke(() => MqttStatus = status);
+            };
 
             RefreshPrinters();
             
