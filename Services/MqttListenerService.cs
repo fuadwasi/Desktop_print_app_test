@@ -29,6 +29,16 @@ namespace PrintDesktopClient.Services
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            await InitializeClientAsync();
+        }
+
+        public async Task InitializeClientAsync()
+        {
+            if (_mqttClient != null)
+            {
+                await _mqttClient.StopAsync();
+            }
+
             var mqttFactory = new MqttFactory();
             _mqttClient = mqttFactory.CreateManagedMqttClient();
 
@@ -40,7 +50,7 @@ namespace PrintDesktopClient.Services
                 .Build();
 
             var options = new ManagedMqttClientOptionsBuilder()
-                .WithAutoReconnectDelay(TimeSpan.FromSeconds(5))
+                .WithAutoReconnectDelay(TimeSpan.FromMinutes(_config.ReconnectIntervalMinutes))
                 .WithClientOptions(clientOptions)
                 .Build();
 
@@ -77,6 +87,16 @@ namespace PrintDesktopClient.Services
 
             await _mqttClient.SubscribeAsync(_config.MqttTopic);
             await _mqttClient.StartAsync(options);
+        }
+
+        public async Task ManualConnectAsync()
+        {
+            _logger.LogInformation("Manual MQTT connection triggered.");
+            if (_mqttClient != null)
+            {
+                // Managed client StartAsync ensures it's trying to connect
+                await _mqttClient.StartAsync(_mqttClient.Options);
+            }
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

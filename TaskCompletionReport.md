@@ -290,6 +290,55 @@ Manual verification of core services (DI, Printer, MQTT) was performed during de
 The application can be published as a self-contained executable using:
 `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true`
 
+| 9.x | Advanced MQTT Config & UI Control | ✅ Done |
+| 10.x | System Tray Integration | ✅ Done |
+
+---
+
+---
+
+## Phase 9 – Advanced MQTT Config & UI Control
+
+---
+
+### Task 9.1 – Advanced MQTT Config & UI Control
+
+**Date:** 2026-05-08
+**Commit:** `task-9.1`
+
+#### Work Done
+- [x] Updated `ConfigurationService` to support persistent storage of MQTT Broker, Username, Password, and Reconnect Interval in `%LOCALAPPDATA%`.
+- [x] Reorganized `MainWindow.xaml` using a `TabControl` to separate Dashboard and Settings.
+- [x] Implemented a Settings UI with data-bound fields for all MQTT parameters.
+- [x] Created `PasswordHelper` to enable secure data binding for `PasswordBox`.
+- [x] Implemented `SaveMqttSettingsCommand` to persist settings and re-initialize the MQTT connection at runtime.
+- [x] Added `ManualConnectCommand` and a "Refresh/Connect" button in the status bar to manually trigger connection attempts.
+- [x] Modified `MqttListenerService` to use the user-defined reconnect interval.
+
+#### Notes
+–
+
+---
+
+## Phase 10 – System Tray Integration
+
+---
+
+### Task 10.1 – System Tray Integration
+
+**Date:** 2026-05-08
+**Commit:** `task-10.1`
+
+#### Work Done
+- [x] Installed `H.NotifyIcon.Wpf` NuGet package.
+- [x] Configured `TaskbarIcon` in XAML with a custom geometry icon and context menu.
+- [x] Implemented "Minimize to Tray" behavior: the app hides and removes itself from the taskbar when minimized.
+- [x] Added Tray Icon event handlers for double-click and context menu "Open" to restore the window.
+- [x] Added context menu "Exit" to gracefully shut down the application.
+
+#### Notes
+–
+
 ---
 
 *This report is updated after each completed task and committed to Git.*

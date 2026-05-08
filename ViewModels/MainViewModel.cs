@@ -26,6 +26,21 @@ namespace PrintDesktopClient.ViewModels
         [ObservableProperty]
         private string _selectedPrinter = string.Empty;
 
+        [ObservableProperty]
+        private string _mqttBroker = string.Empty;
+
+        [ObservableProperty]
+        private string _mqttUsername = string.Empty;
+
+        [ObservableProperty]
+        private string _mqttPassword = string.Empty;
+
+        [ObservableProperty]
+        private string _mqttTopic = string.Empty;
+
+        [ObservableProperty]
+        private int _reconnectIntervalMinutes = 1;
+
         public ObservableCollection<string> AvailablePrinters { get; } = new();
         public ObservableCollection<string> Logs { get; } = new();
         public SnackbarMessageQueue MessageQueue { get; } = new();
@@ -40,6 +55,13 @@ namespace PrintDesktopClient.ViewModels
             _configurationService = configurationService;
             _mqttService = mqttService;
             _notificationService = notificationService;
+
+            // Load settings into ViewModel properties
+            _mqttBroker = _configurationService.MqttBroker;
+            _mqttUsername = _configurationService.MqttUsername;
+            _mqttPassword = _configurationService.GetMqttPassword();
+            _mqttTopic = _configurationService.MqttTopic;
+            _reconnectIntervalMinutes = _configurationService.ReconnectIntervalMinutes;
 
             _mqttService.OnMessageReceived += msg => {
                 App.Current.Dispatcher.Invoke(() => {
@@ -134,6 +156,27 @@ namespace PrintDesktopClient.ViewModels
             {
                 _notificationService.Notify($"Printing failed: {Path.GetFileName(filePath)}", true);
             }
+        }
+
+        [RelayCommand]
+        public async Task SaveMqttSettings()
+        {
+            _configurationService.MqttBroker = MqttBroker;
+            _configurationService.MqttUsername = MqttUsername;
+            _configurationService.MqttTopic = MqttTopic;
+            _configurationService.ReconnectIntervalMinutes = ReconnectIntervalMinutes;
+            _configurationService.SaveMqttPassword(MqttPassword);
+
+            Logs.Add("MQTT Settings saved. Re-initializing connection...");
+            await _mqttService.InitializeClientAsync();
+            _notificationService.Notify("MQTT Settings Saved & Applied.");
+        }
+
+        [RelayCommand]
+        public async Task ManualConnect()
+        {
+            Logs.Add("Manual connection attempt started...");
+            await _mqttService.ManualConnectAsync();
         }
 
         partial void OnSelectedPrinterChanged(string value)
