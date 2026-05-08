@@ -19,7 +19,7 @@
 | 3.1 | Printer Discovery & Selection Service | ✅ Done |
 | 4.1 | Document Printing Pipeline | ✅ Done |
 | 5.1 | MQTT Integration Service | ✅ Done |
-| 6.x | Notification & Error Handling | ⏳ Pending |
+| 6.1 | Notification & Error Handling | ✅ Done |
 | 7.x | Testing | ⏳ Pending |
 | 8.x | Packaging & Deployment | ⏳ Pending |
 
@@ -222,6 +222,30 @@ Repository is clean, structured, and ready for development to begin.
 - [x] Integrated MQTT events (`Connected`, `Disconnected`, `MessageReceived`) into the UI.
 - [x] Implemented `PrinterService.PrintText` for raw text printing with layout.
 - [x] Configured automatic printing of incoming MQTT payloads to the selected printer.
+
+#### Notes
+–
+
+---
+
+---
+
+## Phase 6 – Notification & Error Handling
+
+---
+
+### Task 6.1 – Notification & Error Handling
+
+**Date:** 2026-05-08
+**Commit:** `task-6.1`
+
+#### Work Done
+- [x] Implemented `NotificationService` for both in-app and system-level notifications.
+- [x] Integrated `MaterialDesignThemes` Snackbar for in-app messaging.
+- [x] Configured Windows Toast Notifications using `Microsoft.Toolkit.Uwp.Notifications`.
+- [x] Added robust error handling in `PrinterService` and `MqttListenerService`.
+- [x] Updated `MainViewModel` to centralize all status and error reporting.
+- [x] Adjusted project TFM to `net9.0-windows10.0.19041.0` to support Windows notification APIs.
 
 #### Notes
 –

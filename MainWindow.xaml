@@ -93,6 +93,9 @@
                 <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Opacity="0.7"/>
             </StackPanel>
         </Grid>
+
+        <!-- Notification Snackbar -->
+        <materialDesign:Snackbar MessageQueue="{Binding MessageQueue}" Grid.RowSpan="4" VerticalAlignment="Bottom"/>
     </Grid>
 </Window>
 

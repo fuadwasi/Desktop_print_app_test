@@ -6,6 +6,7 @@ using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using MaterialDesignThemes.Wpf;
 
 namespace PrintDesktopClient.ViewModels
 {
@@ -14,6 +15,7 @@ namespace PrintDesktopClient.ViewModels
         private readonly PrinterService _printerService;
         private readonly ConfigurationService _configurationService;
         private readonly MqttListenerService _mqttService;
+        private readonly NotificationService _notificationService;
 
         [ObservableProperty]
         private string _statusText = "Ready";
@@ -26,19 +28,41 @@ namespace PrintDesktopClient.ViewModels
 
         public ObservableCollection<string> AvailablePrinters { get; } = new();
         public ObservableCollection<string> Logs { get; } = new();
+        public SnackbarMessageQueue MessageQueue { get; } = new();
 
-        public MainViewModel(PrinterService printerService, ConfigurationService configurationService, MqttListenerService mqttService)
+        public MainViewModel(
+            PrinterService printerService, 
+            ConfigurationService configurationService, 
+            MqttListenerService mqttService,
+            NotificationService notificationService)
         {
             _printerService = printerService;
             _configurationService = configurationService;
             _mqttService = mqttService;
+            _notificationService = notificationService;
 
             _mqttService.OnMessageReceived += msg => {
-                App.Current.Dispatcher.Invoke(() => Logs.Add($"MQTT Job: {msg}"));
+                App.Current.Dispatcher.Invoke(() => {
+                    Logs.Add($"MQTT Job: {msg}");
+                    _notificationService.Notify("New MQTT print job received.");
+                });
             };
 
             _mqttService.StatusChanged += status => {
-                App.Current.Dispatcher.Invoke(() => MqttStatus = status);
+                App.Current.Dispatcher.Invoke(() => {
+                    MqttStatus = status;
+                    if (status == "Disconnected")
+                    {
+                        _notificationService.Notify("MQTT Connection lost!", true);
+                    }
+                });
+            };
+
+            _notificationService.OnNotification += (msg, isError) => {
+                App.Current.Dispatcher.Invoke(() => {
+                    MessageQueue.Enqueue(msg);
+                    StatusText = msg;
+                });
             };
 
             RefreshPrinters();
@@ -86,9 +110,7 @@ namespace PrintDesktopClient.ViewModels
 
             if (dialog.ShowDialog() == true)
             {
-                StatusText = "Printing...";
                 await Task.Run(() => PrintFile(dialog.FileName));
-                StatusText = "Ready";
             }
         }
 
@@ -96,7 +118,7 @@ namespace PrintDesktopClient.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedPrinter))
             {
-                App.Current.Dispatcher.Invoke(() => Logs.Add("Error: No printer selected."));
+                _notificationService.Notify("No printer selected!", true);
                 return;
             }
 
@@ -104,16 +126,14 @@ namespace PrintDesktopClient.ViewModels
             
             bool success = _printerService.PrintFile(filePath, SelectedPrinter);
             
-            App.Current.Dispatcher.Invoke(() => {
-                if (success)
-                {
-                    Logs.Add($"Success: {Path.GetFileName(filePath)} sent to printer.");
-                }
-                else
-                {
-                    Logs.Add($"Failure: Could not print {Path.GetFileName(filePath)}.");
-                }
-            });
+            if (success)
+            {
+                _notificationService.Notify($"Sent to printer: {Path.GetFileName(filePath)}");
+            }
+            else
+            {
+                _notificationService.Notify($"Printing failed: {Path.GetFileName(filePath)}", true);
+            }
         }
 
         partial void OnSelectedPrinterChanged(string value)
