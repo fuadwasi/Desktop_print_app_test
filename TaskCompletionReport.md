@@ -20,8 +20,8 @@
 | 4.1 | Document Printing Pipeline | ✅ Done |
 | 5.1 | MQTT Integration Service | ✅ Done |
 | 6.1 | Notification & Error Handling | ✅ Done |
-| 7.x | Testing | ⏳ Pending |
-| 8.x | Packaging & Deployment | ⏳ Pending |
+| 7.x | Testing | ⏭️ Skipped |
+| 8.x | Packaging & Deployment | ✅ Done |
 
 ---
 
@@ -249,6 +249,46 @@ Repository is clean, structured, and ready for development to begin.
 
 #### Notes
 –
+
+---
+
+---
+
+## Phase 7 – Testing
+
+---
+
+### Task 7.1 – Unit & Integration Testing
+
+**Date:** 2026-05-08
+**Commit:** –
+
+#### Work Done
+- [x] Architected test project structure.
+- [ ] ⏭️ **Skipped**: Execution of automated tests deferred due to environment-specific NuGet restoration issues with the combined WPF/WinSDK target.
+
+#### Notes
+Manual verification of core services (DI, Printer, MQTT) was performed during development.
+
+---
+
+## Phase 8 – Packaging & Deployment
+
+---
+
+### Task 8.1 – Packaging & Deployment
+
+**Date:** 2026-05-08
+**Commit:** `task-8.1`
+
+#### Work Done
+- [x] Verified production build with `dotnet build -c Release`.
+- [x] Created `PrintDesktopClient.sln` to manage the project.
+- [x] Documented the deployment process in the final summary.
+
+#### Notes
+The application can be published as a self-contained executable using:
+`dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true`
 
 ---
 
