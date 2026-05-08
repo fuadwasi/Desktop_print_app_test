@@ -9,61 +9,117 @@ namespace PrintDesktopClient.Services
 {
     public class UserSettings
     {
+        // MQTT
         public string MqttBroker { get; set; } = "mqttserver.test";
         public string MqttUsername { get; set; } = "mqttuser";
         public string MqttTopic { get; set; } = "home/printer/print";
-        public int ReconnectIntervalMinutes { get; set; } = 1;
+        public int ReconnectIntervalMinutes { get; set; } = 5;
         public string SelectedPrinter { get; set; } = string.Empty;
+
+        // Cloud API
+        public string ApiBaseUrl { get; set; } = "https://localhost:5001";
+        public string DeviceAccountId { get; set; } = string.Empty;
+
+        // Device Identity — generated once, never overwritten
+        public string DeviceGuid { get; set; } = string.Empty;
     }
 
     public class ConfigurationService
     {
         private readonly IConfiguration _configuration;
         private readonly string _settingsPath;
-        private readonly string _entropyPath;
+        private readonly string _dataDir;
         private UserSettings _userSettings;
 
         public ConfigurationService(IConfiguration configuration)
         {
             _configuration = configuration;
-            var dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PrintDesktopClient");
-            if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+            _dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PrintDesktopClient");
+            if (!Directory.Exists(_dataDir)) Directory.CreateDirectory(_dataDir);
 
-            _settingsPath = Path.Combine(dataDir, "settings.json");
-            _entropyPath = Path.Combine(dataDir, "entropy.bin");
+            _settingsPath = Path.Combine(_dataDir, "settings.json");
 
             _userSettings = LoadSettings();
+
+            // Ensure DeviceGuid is set exactly once and persisted
+            if (string.IsNullOrEmpty(_userSettings.DeviceGuid))
+            {
+                _userSettings.DeviceGuid = Guid.NewGuid().ToString();
+                SaveSettings();
+            }
         }
 
-        public string MqttBroker 
-        { 
-            get => _userSettings.MqttBroker; 
-            set { _userSettings.MqttBroker = value; SaveSettings(); } 
+        // ── MQTT ──────────────────────────────────────────────────────────────
+
+        public string MqttBroker
+        {
+            get => _userSettings.MqttBroker;
+            set { _userSettings.MqttBroker = value; SaveSettings(); }
         }
 
-        public string MqttUsername 
-        { 
-            get => _userSettings.MqttUsername; 
-            set { _userSettings.MqttUsername = value; SaveSettings(); } 
+        public string MqttUsername
+        {
+            get => _userSettings.MqttUsername;
+            set { _userSettings.MqttUsername = value; SaveSettings(); }
         }
 
-        public string MqttTopic 
-        { 
-            get => _userSettings.MqttTopic; 
-            set { _userSettings.MqttTopic = value; SaveSettings(); } 
+        public string MqttTopic
+        {
+            get => _userSettings.MqttTopic;
+            set { _userSettings.MqttTopic = value; SaveSettings(); }
         }
 
-        public int ReconnectIntervalMinutes 
-        { 
-            get => _userSettings.ReconnectIntervalMinutes; 
-            set { _userSettings.ReconnectIntervalMinutes = value; SaveSettings(); } 
+        public int ReconnectIntervalMinutes
+        {
+            get => _userSettings.ReconnectIntervalMinutes;
+            set { _userSettings.ReconnectIntervalMinutes = value; SaveSettings(); }
         }
 
-        public string SelectedPrinter 
-        { 
-            get => _userSettings.SelectedPrinter; 
-            set { _userSettings.SelectedPrinter = value; SaveSettings(); } 
+        public string SelectedPrinter
+        {
+            get => _userSettings.SelectedPrinter;
+            set { _userSettings.SelectedPrinter = value; SaveSettings(); }
         }
+
+        // ── Cloud API ─────────────────────────────────────────────────────────
+
+        public string ApiBaseUrl
+        {
+            get => _userSettings.ApiBaseUrl;
+            set { _userSettings.ApiBaseUrl = value; SaveSettings(); }
+        }
+
+        public string DeviceAccountId
+        {
+            get => _userSettings.DeviceAccountId;
+            set { _userSettings.DeviceAccountId = value; SaveSettings(); }
+        }
+
+        /// <summary>Immutable after first generation.</summary>
+        public string DeviceGuid => _userSettings.DeviceGuid;
+
+        // ── Secure Secret Storage (DPAPI) ─────────────────────────────────────
+
+        public string GetMqttPassword()         => LoadSecret("mqtt.dat", "mqtt_entropy.bin", "mqttpass");
+        public void   SaveMqttPassword(string p) => SaveSecret("mqtt.dat", "mqtt_entropy.bin", p);
+
+        public string GetApiSecret()            => LoadSecret("api_secret.dat", "api_secret_entropy.bin", string.Empty);
+        public void   SaveApiSecret(string s)   => SaveSecret("api_secret.dat", "api_secret_entropy.bin", s);
+
+        // ── Wipe Credentials (Revocation) ─────────────────────────────────────
+
+        public void WipeCredentials()
+        {
+            _userSettings.DeviceAccountId = string.Empty;
+            _userSettings.DeviceGuid = string.Empty; // Force new GUID on next boot
+            DeleteSecretFile("mqtt.dat");
+            DeleteSecretFile("mqtt_entropy.bin");
+            DeleteSecretFile("api_secret.dat");
+            DeleteSecretFile("api_secret_entropy.bin");
+            SaveSettings();
+        }
+
+        // ── Persist / Load ────────────────────────────────────────────────────
 
         private UserSettings LoadSettings()
         {
@@ -74,23 +130,18 @@ namespace PrintDesktopClient.Services
                     var json = File.ReadAllText(_settingsPath);
                     return JsonSerializer.Deserialize<UserSettings>(json) ?? CreateDefaultSettings();
                 }
-                catch
-                {
-                    return CreateDefaultSettings();
-                }
+                catch { return CreateDefaultSettings(); }
             }
             return CreateDefaultSettings();
         }
 
-        private UserSettings CreateDefaultSettings()
+        private UserSettings CreateDefaultSettings() => new()
         {
-            return new UserSettings
-            {
-                MqttBroker = _configuration["Mqtt:Broker"] ?? "mqttserver.test",
-                MqttUsername = _configuration["Mqtt:Username"] ?? "mqttuser",
-                MqttTopic = _configuration["Mqtt:Topic"] ?? "home/printer/print"
-            };
-        }
+            MqttBroker = _configuration["Mqtt:Broker"] ?? "mqttserver.test",
+            MqttUsername = _configuration["Mqtt:Username"] ?? "mqttuser",
+            MqttTopic = _configuration["Mqtt:Topic"] ?? "home/printer/print",
+            ApiBaseUrl = _configuration["Api:BaseUrl"] ?? "https://localhost:5001"
+        };
 
         private void SaveSettings()
         {
@@ -98,43 +149,39 @@ namespace PrintDesktopClient.Services
             File.WriteAllText(_settingsPath, json);
         }
 
-        public string GetMqttPassword()
+        // ── DPAPI helpers ─────────────────────────────────────────────────────
+
+        private string LoadSecret(string dataFile, string entropyFile, string fallback)
         {
-            var path = GetPasswordPath();
-            if (!File.Exists(path)) return "mqttpass";
+            var path = Path.Combine(_dataDir, dataFile);
+            var entropyPath = Path.Combine(_dataDir, entropyFile);
+            if (!File.Exists(path)) return fallback;
 
             try
             {
-                var encryptedData = File.ReadAllBytes(path);
-                var entropy = File.Exists(_entropyPath) ? File.ReadAllBytes(_entropyPath) : null;
-                var decryptedData = ProtectedData.Unprotect(encryptedData, entropy, DataProtectionScope.CurrentUser);
-                return Encoding.UTF8.GetString(decryptedData);
+                var encrypted = File.ReadAllBytes(path);
+                var entropy   = File.Exists(entropyPath) ? File.ReadAllBytes(entropyPath) : null;
+                return Encoding.UTF8.GetString(ProtectedData.Unprotect(encrypted, entropy, DataProtectionScope.CurrentUser));
             }
-            catch
-            {
-                return "mqttpass";
-            }
+            catch { return fallback; }
         }
 
-        public void SaveMqttPassword(string password)
+        private void SaveSecret(string dataFile, string entropyFile, string value)
         {
-            var data = Encoding.UTF8.GetBytes(password);
+            var data    = Encoding.UTF8.GetBytes(value);
             var entropy = new byte[16];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(entropy);
-            }
-            
-            var encryptedData = ProtectedData.Protect(data, entropy, DataProtectionScope.CurrentUser);
-            
-            var dir = Path.GetDirectoryName(GetPasswordPath());
-            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir!);
-            
-            File.WriteAllBytes(GetPasswordPath(), encryptedData);
-            File.WriteAllBytes(_entropyPath, entropy);
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(entropy);
+
+            var encrypted = ProtectedData.Protect(data, entropy, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(Path.Combine(_dataDir, dataFile),    encrypted);
+            File.WriteAllBytes(Path.Combine(_dataDir, entropyFile), entropy);
         }
 
-        private string GetPasswordPath() => 
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PrintDesktopClient", "mqtt.dat");
+        private void DeleteSecretFile(string fileName)
+        {
+            var path = Path.Combine(_dataDir, fileName);
+            if (File.Exists(path)) File.Delete(path);
+        }
     }
 }

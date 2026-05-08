@@ -1,0 +1,175 @@
+{
+  "info": {
+    "name": "AutoPrintAgent API",
+    "_postman_id": "autoprintagent-collection",
+    "description": "Postman collection for AutoPrintAgent plugin API endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:5001",
+      "type": "string"
+    },
+    {
+      "key": "DeviceAccountId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ApiSecret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "DeviceGuid",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authenticate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceAccountId\": \"{{DeviceAccountId}}\",\n  \"apiSecret\": \"{{ApiSecret}}\",\n  \"deviceGuid\": \"{{DeviceGuid}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/printagent/authenticate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "printagent",
+            "authenticate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Sync Printers",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Device-Id",
+            "value": "{{DeviceAccountId}}"
+          },
+          {
+            "key": "X-Api-Secret",
+            "value": "{{ApiSecret}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceGuid\": \"{{DeviceGuid}}\",\n  \"printers\": [\"Printer 1\", \"Printer 2\"]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/printagent/sync-printers",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "printagent",
+            "sync-printers"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Download Job PDF",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Device-Id",
+            "value": "{{DeviceAccountId}}"
+          },
+          {
+            "key": "X-Api-Secret",
+            "value": "{{ApiSecret}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/printagent/jobs/1/download",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "printagent",
+            "jobs",
+            "1",
+            "download"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update Job Status",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Device-Id",
+            "value": "{{DeviceAccountId}}"
+          },
+          {
+            "key": "X-Api-Secret",
+            "value": "{{ApiSecret}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"Printed\",\n  \"errorMessage\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/printagent/jobs/1/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "printagent",
+            "jobs",
+            "1",
+            "status"
+          ]
+        }
+      }
+    }
+  ]
+}

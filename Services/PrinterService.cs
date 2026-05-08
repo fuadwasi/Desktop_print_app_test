@@ -8,11 +8,14 @@ using System.Windows.Documents;
 using System.Windows;
 using System.Windows.Media;
 using System.Printing;
+using PdfiumViewer;
 
 namespace PrintDesktopClient.Services
 {
     public class PrinterService
     {
+        // ── Printer Discovery ─────────────────────────────────────────────────
+
         public List<string> GetAvailablePrinters()
         {
             try
@@ -22,10 +25,11 @@ namespace PrintDesktopClient.Services
             }
             catch
             {
-                // Fallback to older method if PrintServer fails
                 return System.Drawing.Printing.PrinterSettings.InstalledPrinters.Cast<string>().ToList();
             }
         }
+
+        // ── File Printing ─────────────────────────────────────────────────────
 
         public bool PrintFile(string filePath, string printerName)
         {
@@ -33,27 +37,28 @@ namespace PrintDesktopClient.Services
             {
                 if (string.IsNullOrEmpty(printerName)) return false;
 
+                // Use the PDF silent path for PDF files
+                if (Path.GetExtension(filePath).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                    return PrintPdfFile(filePath, printerName);
+
                 var psi = new ProcessStartInfo
                 {
-                    FileName = filePath,
-                    Verb = "PrintTo",
-                    Arguments = $"\"{printerName}\"",
-                    CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName    = filePath,
+                    Verb        = "PrintTo",
+                    Arguments   = $"\"{printerName}\"",
+                    CreateNoWindow  = true,
+                    WindowStyle     = ProcessWindowStyle.Hidden,
                     UseShellExecute = true
                 };
 
-                try 
+                try { Process.Start(psi); }
+                catch
                 {
-                    Process.Start(psi);
-                } 
-                catch 
-                {
-                    psi.Verb = "Print";
+                    psi.Verb      = "Print";
                     psi.Arguments = "";
                     Process.Start(psi);
                 }
-                
+
                 return true;
             }
             catch (Exception ex)
@@ -63,75 +68,107 @@ namespace PrintDesktopClient.Services
             }
         }
 
+        // ── PDF from byte[] (Cloud Job) ───────────────────────────────────────
+
+        /// <summary>
+        /// Saves <paramref name="pdfBytes"/> to a temp file, prints it silently,
+        /// then deletes the temp file.
+        /// </summary>
+        public bool PrintPdfBytes(byte[] pdfBytes, string printerName)
+        {
+            var tmp = Path.Combine(Path.GetTempPath(), $"print_{Guid.NewGuid()}.pdf");
+            try
+            {
+                File.WriteAllBytes(tmp, pdfBytes);
+                return PrintPdfFile(tmp, printerName);
+            }
+            finally
+            {
+                // Privacy: always remove the temp file
+                if (File.Exists(tmp))
+                {
+                    try { File.Delete(tmp); } catch { /* best-effort */ }
+                }
+            }
+        }
+
+        // ── PDF silent printing via PdfiumViewer ──────────────────────────────
+
+        private bool PrintPdfFile(string pdfPath, string printerName)
+        {
+            try
+            {
+                using var doc       = PdfDocument.Load(pdfPath);
+                using var printDoc  = doc.CreatePrintDocument();
+
+                printDoc.PrinterSettings.PrinterName = printerName;
+                // Suppress the Printing dialog
+                printDoc.PrintController = new System.Drawing.Printing.StandardPrintController();
+                printDoc.Print();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"PDF printing failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        // ── Plain Text Printing (WPF FlowDocument) ────────────────────────────
+
         public bool PrintText(string text, string printerName)
         {
-            // We use the WPF Dispatcher to ensure the PrintDialog and FlowDocument 
-            // are created on a UI-compatible thread if necessary, though usually 
-            // this is called from the UI or a background thread handled by the ViewModel.
             bool success = false;
-            
-            // Use Application Dispatcher to ensure we are on the right thread for WPF UI objects
+
             Application.Current.Dispatcher.Invoke(() =>
             {
                 try
                 {
                     if (string.IsNullOrEmpty(printerName)) return;
 
-                    // 1. Create a FlowDocument (Our "Virtual Document")
-                    var doc = new FlowDocument();
-                    doc.PagePadding = new Thickness(50);
-                    doc.ColumnWidth = double.PositiveInfinity; // Prevent multi-column layout
-                    doc.FontFamily = new FontFamily("Segoe UI");
-
-                    // Add Header
-                    var header = new Paragraph(new Run("MQTT INCOMING MESSAGE"))
+                    var doc = new FlowDocument
                     {
-                        FontSize = 20,
+                        PagePadding  = new Thickness(50),
+                        ColumnWidth  = double.PositiveInfinity,
+                        FontFamily   = new FontFamily("Segoe UI")
+                    };
+
+                    doc.Blocks.Add(new Paragraph(new Run("MQTT INCOMING MESSAGE"))
+                    {
+                        FontSize   = 20,
                         FontWeight = FontWeights.Bold,
                         Foreground = Brushes.DarkSlateBlue,
-                        Margin = new Thickness(0, 0, 0, 10)
-                    };
-                    doc.Blocks.Add(header);
+                        Margin     = new Thickness(0, 0, 0, 10)
+                    });
 
-                    // Add Timestamp
-                    var meta = new Paragraph(new Run($"Received at: {DateTime.Now:F}"))
+                    doc.Blocks.Add(new Paragraph(new Run($"Received at: {DateTime.Now:F}"))
                     {
-                        FontSize = 10,
-                        FontStyle = FontStyles.Italic,
+                        FontSize   = 10,
+                        FontStyle  = FontStyles.Italic,
                         Foreground = Brushes.Gray,
-                        Margin = new Thickness(0, 0, 0, 20)
-                    };
-                    doc.Blocks.Add(meta);
+                        Margin     = new Thickness(0, 0, 0, 20)
+                    });
 
-                    // Add Message Content
-                    var content = new Paragraph(new Run(text))
+                    doc.Blocks.Add(new Paragraph(new Run(text))
                     {
-                        FontSize = 13,
+                        FontSize   = 13,
                         LineHeight = 1.5
-                    };
-                    doc.Blocks.Add(content);
+                    });
 
-                    // 2. Setup PrintDialog for Silent Printing
                     var printDialog = new PrintDialog();
-                    
-                    // Look up the specific printer queue
-                    var printServer = new PrintServer();
-                    var queue = printServer.GetPrintQueue(printerName);
-                    
+                    var queue = new PrintServer().GetPrintQueue(printerName);
                     if (queue != null)
                     {
                         printDialog.PrintQueue = queue;
-                        
-                        // 3. Print the document silently
-                        var paginator = ((IDocumentPaginatorSource)doc).DocumentPaginator;
-                        printDialog.PrintDocument(paginator, $"MQTT_Print_{DateTime.Now.Ticks}");
+                        printDialog.PrintDocument(
+                            ((IDocumentPaginatorSource)doc).DocumentPaginator,
+                            $"MQTT_{DateTime.Now.Ticks}");
                         success = true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"WPF Printing failed: {ex.Message}");
-                    success = false;
+                    Debug.WriteLine($"WPF text printing failed: {ex.Message}");
                 }
             });
 
