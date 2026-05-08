@@ -13,7 +13,9 @@
 | 1.2 | Configure Dependency Injection (DI Host) | ✅ Done |
 | 1.3 | Setup Serilog Logging | ✅ Done |
 | 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ✅ Done |
-| 2.x | UI Design & MVVM Plumbing | ⏳ Pending |
+| 2.1 | Install MVVM Toolkit & Setup MainViewModel | ✅ Done |
+| 2.2 | Design Main Window Layout | ⏳ Pending |
+| 2.3 | Implement modern UI Theme | ⏳ Pending |
 | 3.x | Printer Discovery & Selection | ⏳ Pending |
 | 4.x | Document Printing Pipeline (Continuous Loop) | ⏳ Pending |
 | 5.x | MQTT Integration | ⏳ Pending |
@@ -99,6 +101,56 @@ Repository is clean, structured, and ready for development to begin.
 - [x] Created `appsettings.json` with MQTT broker settings (non-sensitive keys only).
 - [x] Implemented `ConfigurationService` using Windows DPAPI (`System.Security.Cryptography.ProtectedData`) for encrypting `mqttpass` at rest.
 - [x] Registered `ConfigurationService` as a singleton in the DI container.
+
+#### Notes
+–
+
+---
+
+---
+
+## Phase 2 – UI Design & MVVM Plumbing
+
+---
+
+### Task 2.1 – Install MVVM Toolkit & Setup MainViewModel
+
+**Date:** 2026-05-07
+**Commit:** `task-2.1`
+
+#### Work Done
+- [x] Installed `CommunityToolkit.Mvvm` NuGet package.
+- [x] Implemented `MainViewModel` inheriting from `ObservableObject`.
+- [x] Added core observable properties: `StatusText`, `MqttStatus`, `SelectedPrinter`.
+- [x] Added `AvailablePrinters` and `Logs` collections.
+
+#### Notes
+–
+
+---
+
+### Task 2.2 – Design Main Window Layout
+
+**Date:** ⏳ Pending
+**Commit:** –
+
+#### Work Done
+- [ ] Implement XAML for printer selection, document drop zone, and log display.
+- [ ] Bind UI elements to `MainViewModel`.
+
+#### Notes
+–
+
+---
+
+### Task 2.3 – Implement modern UI Theme
+
+**Date:** ⏳ Pending
+**Commit:** –
+
+#### Work Done
+- [ ] Add `MaterialDesignThemes` or similar for polished styling.
+- [ ] Configure color palette and typography.
 
 #### Notes
 –
