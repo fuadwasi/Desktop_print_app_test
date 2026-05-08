@@ -15,7 +15,7 @@
 | 1.4 | Implement `ConfigurationService` (DPAPI secure settings) | ✅ Done |
 | 2.1 | Install MVVM Toolkit & Setup MainViewModel | ✅ Done |
 | 2.2 | Design Main Window Layout | ✅ Done |
-| 2.3 | Implement modern UI Theme | ⏳ Pending |
+| 2.3 | Implement modern UI Theme | ✅ Done |
 | 3.x | Printer Discovery & Selection | ⏳ Pending |
 | 4.x | Document Printing Pipeline (Continuous Loop) | ⏳ Pending |
 | 5.x | MQTT Integration | ⏳ Pending |
@@ -145,12 +145,14 @@ Repository is clean, structured, and ready for development to begin.
 
 ### Task 2.3 – Implement modern UI Theme
 
-**Date:** ⏳ Pending
-**Commit:** –
+**Date:** 2026-05-08
+**Commit:** `task-2.3`
 
 #### Work Done
-- [ ] Add `MaterialDesignThemes` or similar for polished styling.
-- [ ] Configure color palette and typography.
+- [x] Added `MaterialDesignThemes` NuGet package.
+- [x] Configured MaterialDesign resources in `App.xaml`.
+- [x] Enhanced `MainWindow.xaml` with MaterialDesign Cards, Icons, and Buttons.
+- [x] Set up typography and color palette (Primary: Blue, Secondary: Lime).
 
 #### Notes
 –
