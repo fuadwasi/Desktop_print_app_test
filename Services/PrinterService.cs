@@ -8,7 +8,10 @@ using System.Windows.Documents;
 using System.Windows;
 using System.Windows.Media;
 using System.Printing;
+using System.Threading;
+using System.Threading.Tasks;
 using PdfiumViewer;
+using System.Drawing.Printing;
 
 namespace PrintDesktopClient.Services
 {
@@ -37,9 +40,10 @@ namespace PrintDesktopClient.Services
             {
                 if (string.IsNullOrEmpty(printerName)) return false;
 
-                // Use the PDF silent path for PDF files
-                if (Path.GetExtension(filePath).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                if (filePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                {
                     return PrintPdfFile(filePath, printerName);
+                }
 
                 var psi = new ProcessStartInfo
                 {
@@ -52,8 +56,9 @@ namespace PrintDesktopClient.Services
                 };
 
                 try { Process.Start(psi); }
-                catch
+                catch (Exception ex)
                 {
+                    Debug.WriteLine($"Printing failed: {ex.Message}");
                     psi.Verb      = "Print";
                     psi.Arguments = "";
                     Process.Start(psi);
@@ -87,24 +92,32 @@ namespace PrintDesktopClient.Services
                 // Privacy: always remove the temp file
                 if (File.Exists(tmp))
                 {
-                    try { File.Delete(tmp); } catch { /* best-effort */ }
+                    Thread.Sleep(500); // Ensure printing has started before deletion
+                    try { 
+                        File.Delete(tmp); 
+                    } 
+                    catch { 
+                        /* best-effort */ 
+                    }
                 }
             }
         }
 
-        // ── PDF silent printing via PdfiumViewer ──────────────────────────────
+        // ── PDF printing via Windows Shell (no external dependencies) ─────────
 
         private bool PrintPdfFile(string pdfPath, string printerName)
         {
             try
             {
-                using var doc       = PdfDocument.Load(pdfPath);
-                using var printDoc  = doc.CreatePrintDocument();
-
-                printDoc.PrinterSettings.PrinterName = printerName;
-                // Suppress the Printing dialog
-                printDoc.PrintController = new System.Drawing.Printing.StandardPrintController();
-                printDoc.Print();
+                using (var document = PdfDocument.Load(pdfPath))
+                {
+                    using (var printDocument = document.CreatePrintDocument())
+                    {
+                        printDocument.PrinterSettings.PrinterName = printerName;
+                        printDocument.PrintController = new StandardPrintController(); // Silent printing
+                        printDocument.Print();
+                    }
+                }
                 return true;
             }
             catch (Exception ex)
@@ -173,6 +186,25 @@ namespace PrintDesktopClient.Services
             });
 
             return success;
+        }
+
+        // ── Wait helpers ───────────────────────────────────────────────────────
+        /// <summary>
+        /// Asynchronously waits for five seconds. This does not block the calling thread.
+        /// Prefer this method in UI scenarios to avoid freezing the UI thread.
+        /// </summary>
+        public Task WaitFiveSecondsAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+        }
+
+        /// <summary>
+        /// Synchronously blocks the current thread for five seconds.
+        /// Use only when a blocking wait is explicitly required.
+        /// </summary>
+        public void WaitForBlocking(int sec)
+        {
+            Thread.Sleep(TimeSpan.FromSeconds(sec));
         }
     }
 }

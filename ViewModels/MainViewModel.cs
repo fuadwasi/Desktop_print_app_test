@@ -87,10 +87,10 @@ namespace PrintDesktopClient.ViewModels
             });
 
             // Print command: download job PDF and print silently
-            _mqttService.OnPrintCommand += async jobId =>
+            _mqttService.OnPrintCommand += async (jobId, printerName) =>
             {
-                Dispatch(() => Logs.Add($"[MQTT PRINT] JobId: {jobId}"));
-                await ExecutePrintJobAsync(jobId);
+                Dispatch(() => Logs.Add($"[MQTT PRINT] JobId: {jobId} Printer: {printerName}"));
+                await ExecutePrintJobAsync(jobId, printerName);
             };
 
             // Sync command: push printers to cloud
@@ -234,9 +234,10 @@ namespace PrintDesktopClient.ViewModels
 
         // ── Cloud Print Job Execution (Tasks 5.1 + 5.3) ───────────────────────
 
-        private async Task ExecutePrintJobAsync(string jobId)
+        private async Task ExecutePrintJobAsync(string jobId, string jobPrinterName)
         {
-            if (string.IsNullOrEmpty(SelectedPrinter))
+            var selectedPrinter = string.IsNullOrEmpty(jobPrinterName)? SelectedPrinter : jobPrinterName;
+            if (string.IsNullOrEmpty(selectedPrinter))
             {
                 Dispatch(() => Logs.Add($"[JOB {jobId}] No printer selected – skipping."));
                 await _apiService.UpdateJobStatusAsync(jobId, false, "No printer selected on device.");
@@ -244,27 +245,36 @@ namespace PrintDesktopClient.ViewModels
             }
 
             Dispatch(() => Logs.Add($"[JOB {jobId}] Downloading..."));
-            var pdfBytes = await _apiService.DownloadJobAsync(jobId);
-
-            if (pdfBytes == null || pdfBytes.Length == 0)
+            try
             {
-                Dispatch(() => Logs.Add($"[JOB {jobId}] Download failed."));
-                await _apiService.UpdateJobStatusAsync(jobId, false, "PDF download failed.");
-                _notificationService.Notify($"Job {jobId}: download failed.", isError: true);
-                return;
+
+                var pdfBytes = await _apiService.DownloadJobAsync(jobId);
+
+                if (pdfBytes == null || pdfBytes.Length == 0)
+                {
+                    Dispatch(() => Logs.Add($"[JOB {jobId}] Download failed."));
+                    await _apiService.UpdateJobStatusAsync(jobId, false, "PDF download failed.");
+                    _notificationService.Notify($"Job {jobId}: download failed.", isError: true);
+                    return;
+                }
+
+                Dispatch(() => Logs.Add($"[JOB {jobId}] Downloaded {pdfBytes.Length:N0} bytes. Printing..."));
+                bool printed = _printerService.PrintPdfBytes(pdfBytes, selectedPrinter);
+
+                await _apiService.UpdateJobStatusAsync(jobId, printed,
+                    printed ? string.Empty : "Printing returned failure.");
+
+                _notificationService.Notify(printed
+                    ? $"Job {jobId}: printed successfully."
+                    : $"Job {jobId}: print FAILED.", !printed);
+
+                Dispatch(() => Logs.Add($"[JOB {jobId}] {(printed ? "Done." : "FAILED.")}"));
             }
+            catch (Exception ex)
+            {
 
-            Dispatch(() => Logs.Add($"[JOB {jobId}] Downloaded {pdfBytes.Length:N0} bytes. Printing..."));
-            bool printed = _printerService.PrintPdfBytes(pdfBytes, SelectedPrinter);
-
-            await _apiService.UpdateJobStatusAsync(jobId, printed,
-                printed ? string.Empty : "Printing returned failure.");
-
-            _notificationService.Notify(printed
-                ? $"Job {jobId}: printed successfully."
-                : $"Job {jobId}: print FAILED.", !printed);
-
-            Dispatch(() => Logs.Add($"[JOB {jobId}] {(printed ? "Done." : "FAILED.")}"));
+                throw;
+            }
         }
 
         // ── Revocation (Task 6.1) ─────────────────────────────────────────────

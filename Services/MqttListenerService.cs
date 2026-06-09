@@ -13,7 +13,7 @@ namespace PrintDesktopClient.Services
 {
     // ── Command payload shapes ─────────────────────────────────────────────────
 
-    public record MqttCommand(string Type, string Data);
+    public record MqttCommand(string Type, string JobId, string PrinterName);
 
     // ── Service ───────────────────────────────────────────────────────────────
 
@@ -30,8 +30,8 @@ namespace PrintDesktopClient.Services
         public event Action<string>? OnMessageReceived;
         /// <summary>Raised when the MQTT connection state changes.</summary>
         public event Action<string>? StatusChanged;
-        /// <summary>Raised when a print command is received. Arg: jobId.</summary>
-        public event Func<string, Task>? OnPrintCommand;
+        /// <summary>Raised when a print command is received. Args: jobId, printerName.</summary>
+        public event Func<string, string, Task>? OnPrintCommand;
         /// <summary>Raised when a printer_sync command is received.</summary>
         public event Action? OnSyncCommand;
         /// <summary>Raised when a revoke command is received.</summary>
@@ -88,6 +88,13 @@ namespace PrintDesktopClient.Services
                 .WithWillRetain(true)
                 .WithCleanSession()
                 .Build();
+
+            //var clientOptions = new MqttClientOptionsBuilder()
+            //    .WithClientId("PrintDesktopClient_" + _config.DeviceAccountId)
+            //    .WithTcpServer(_config.MqttBroker)
+            //    .WithCredentials(_config.MqttUsername, _config.GetMqttPassword())
+            //    .WithCleanSession()
+            //    .Build();
 
             var options = new ManagedMqttClientOptionsBuilder()
                 .WithAutoReconnectDelay(TimeSpan.FromMinutes(_config.ReconnectIntervalMinutes))
@@ -153,9 +160,9 @@ namespace PrintDesktopClient.Services
                     switch (cmd.Type.ToLowerInvariant())
                     {
                         case "print":
-                            _logger.LogInformation("Print command received. JobId: {JobId}", cmd.Data);
+                            _logger.LogInformation("Print command received. JobId: {JobId}", cmd.JobId);
                             if (OnPrintCommand != null)
-                                await OnPrintCommand.Invoke(cmd.Data);
+                                await OnPrintCommand.Invoke(cmd.JobId, cmd.PrinterName);
                             return;
 
                         case "printer_sync":
@@ -184,7 +191,7 @@ namespace PrintDesktopClient.Services
                 _logger.LogWarning("MQTT text received but no printer selected.");
         }
 
-        // ── Manual connect ────────────────────────────────────────────────────
+        // ── Manual connect ───────────────────────────────────────────────────
 
         public async Task ManualConnectAsync() => await InitializeClientAsync();
     }
