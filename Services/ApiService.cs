@@ -14,7 +14,17 @@ namespace PrintDesktopClient.Services
 
     public record AuthenticateRequest(string DeviceAccountId, string ApiSecret, string DeviceGuid);
     public record SyncPrintersRequest(string DeviceGuid, List<string> Printers);
-    public record JobStatusRequest(string Status, string ErrorMessage);
+    public record JobStatusRequest(int Status, string ErrorMessage);
+
+    // Make sure these integer values match the PrintJobStatus enum in your API project.
+    public enum PrintJobStatus
+    {
+         Queued = 1,
+         Signaled = 2,
+         Downloading = 3,
+         Printed = 4,
+         Failed = 5
+    }
 
     // ── Service ───────────────────────────────────────────────────────────────
 
@@ -144,7 +154,7 @@ namespace PrintDesktopClient.Services
         {
             try
             {
-                var status = success ? "Printed" : "Failed";
+                var status = success ? (int)PrintJobStatus.Printed : (int)PrintJobStatus.Failed;
                 var response = await CreateClient().PostAsJsonAsync(
                     $"api/printagent/jobs/{jobId}/status",
                     new JobStatusRequest(status, errorMessage));
