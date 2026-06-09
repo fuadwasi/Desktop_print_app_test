@@ -29,7 +29,7 @@ namespace PrintDesktopClient.ViewModels
         [ObservableProperty] private string _mqttUsername = string.Empty;
         [ObservableProperty] private string _mqttPassword = string.Empty;
         [ObservableProperty] private string _mqttTopic = string.Empty;
-        [ObservableProperty] private int    _reconnectIntervalMinutes = 5;
+        [ObservableProperty] private int    _reconnectIntervalSeconds = 10;
 
         // Cloud / API settings
         [ObservableProperty] private string _apiBaseUrl = string.Empty;
@@ -65,7 +65,7 @@ namespace PrintDesktopClient.ViewModels
             _mqttUsername             = _configurationService.MqttUsername;
             _mqttPassword             = _configurationService.GetMqttPassword();
             _mqttTopic                = _configurationService.MqttTopic;
-            _reconnectIntervalMinutes = _configurationService.ReconnectIntervalMinutes;
+            _reconnectIntervalSeconds = _configurationService.ReconnectIntervalSeconds;
             _apiBaseUrl               = _configurationService.ApiBaseUrl;
             _deviceAccountId          = _configurationService.DeviceAccountId;
             _apiSecret                = _configurationService.GetApiSecret();
@@ -79,11 +79,19 @@ namespace PrintDesktopClient.ViewModels
                 _notificationService.Notify("New MQTT text message received.");
             });
 
+            string lastMqttStatus = "";
             _mqttService.StatusChanged += status => Dispatch(() =>
             {
                 MqttStatus = status;
-                if (status == "Disconnected")
+                if (status == "Disconnected" && lastMqttStatus != "Disconnected")
+                {
                     _notificationService.Notify("MQTT Connection lost!", isError: true);
+                }
+                else if (status == "Connected" && lastMqttStatus != "Connected")
+                {
+                    _notificationService.Notify("MQTT Connected!");
+                }
+                lastMqttStatus = status;
             });
 
             // Print command: download job PDF and print silently
@@ -165,7 +173,7 @@ namespace PrintDesktopClient.ViewModels
             _configurationService.MqttBroker              = MqttBroker;
             _configurationService.MqttUsername            = MqttUsername;
             _configurationService.MqttTopic               = MqttTopic;
-            _configurationService.ReconnectIntervalMinutes = ReconnectIntervalMinutes;
+            _configurationService.ReconnectIntervalSeconds = ReconnectIntervalSeconds;
             _configurationService.SaveMqttPassword(MqttPassword);
 
             Logs.Add("MQTT settings saved. Re-initializing connection...");

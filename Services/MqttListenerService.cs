@@ -97,7 +97,7 @@ namespace PrintDesktopClient.Services
             //    .Build();
 
             var options = new ManagedMqttClientOptionsBuilder()
-                .WithAutoReconnectDelay(TimeSpan.FromMinutes(_config.ReconnectIntervalMinutes))
+                .WithAutoReconnectDelay(TimeSpan.FromSeconds(_config.ReconnectIntervalSeconds))
                 .WithClientOptions(clientOptions)
                 .Build();
 

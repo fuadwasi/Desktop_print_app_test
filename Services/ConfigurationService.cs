@@ -13,7 +13,7 @@ namespace PrintDesktopClient.Services
         public string MqttBroker { get; set; } = "mqttserver.test";
         public string MqttUsername { get; set; } = "mqttuser";
         public string MqttTopic { get; set; } = "home/printer/print";
-        public int ReconnectIntervalMinutes { get; set; } = 5;
+        public int ReconnectIntervalSeconds { get; set; } = 10;
         public string SelectedPrinter { get; set; } = string.Empty;
 
         // Cloud API
@@ -69,10 +69,10 @@ namespace PrintDesktopClient.Services
             set { _userSettings.MqttTopic = value; SaveSettings(); }
         }
 
-        public int ReconnectIntervalMinutes
+        public int ReconnectIntervalSeconds
         {
-            get => _userSettings.ReconnectIntervalMinutes;
-            set { _userSettings.ReconnectIntervalMinutes = value; SaveSettings(); }
+            get => _userSettings.ReconnectIntervalSeconds;
+            set { _userSettings.ReconnectIntervalSeconds = value; SaveSettings(); }
         }
 
         public string SelectedPrinter

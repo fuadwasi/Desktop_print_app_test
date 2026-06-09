@@ -164,10 +164,10 @@
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,30">
                             <TextBox materialDesign:HintAssist.Hint="Reconnect Interval"
-                                     Text="{Binding ReconnectIntervalMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding ReconnectIntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
                                      Width="150"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,10,0"/>
-                            <TextBlock Text="Minutes" VerticalAlignment="Center" Opacity="0.6"/>
+                            <TextBlock Text="Seconds" VerticalAlignment="Center" Opacity="0.6"/>
                         </StackPanel>
 
                         <Button Content="SAVE &amp; APPLY MQTT SETTINGS"
