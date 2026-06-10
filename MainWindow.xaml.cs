@@ -24,10 +24,18 @@ namespace PrintDesktopClient
         {
             try
             {
-                MyNotifyIcon.Icon = SystemIcons.Information;
+                string customIconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "app_icon.ico");
+                if (System.IO.File.Exists(customIconPath))
+                {
+                    MyNotifyIcon.Icon = new Icon(customIconPath);
+                    this.Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri(customIconPath));
+                }
                 MyNotifyIcon.Visibility = Visibility.Visible;
             }
-            catch { /* best-effort */ }
+            catch 
+            { 
+                // Let XAML load favicon.ico natively
+            }
 
             // ── Wire balloon tip notifications (Windows 7 compatible) ──────────
             // NotificationService fires OnNotification; we show a tray balloon.

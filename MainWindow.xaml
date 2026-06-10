@@ -10,6 +10,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="Auto-Print Agent" Height="750" Width="980"
+        Icon="/Resources/Images/PDC_Icons/favicon.ico"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
         TextElement.FontWeight="Regular"
         TextElement.FontSize="14"
@@ -23,6 +24,7 @@
         <tb:TaskbarIcon x:Name="MyNotifyIcon"
                         Visibility="Visible"
                         ToolTipText="Auto-Print Agent"
+                        IconSource="/Resources/Images/PDC_Icons/favicon.ico"
                         TrayMouseDoubleClick="MyNotifyIcon_TrayMouseDoubleClick">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>
@@ -52,29 +54,42 @@
                 </TabItem.Header>
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="210"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/> <!-- Header Logo Row -->
+                        <RowDefinition Height="Auto"/> <!-- Printer Row -->
+                        <RowDefinition Height="*"/>    <!-- Drop Zone -->
+                        <RowDefinition Height="210"/>  <!-- Logs -->
+                        <RowDefinition Height="Auto"/> <!-- Status Bar -->
                     </Grid.RowDefinitions>
 
+                    <!-- Header Logo -->
+                    <Grid Grid.Row="0" Margin="0,0,0,15">
+                        <Image Source="/Resources/Images/full_logo.png" Height="40" HorizontalAlignment="Left" Margin="5,0,0,0"/>
+                    </Grid>
+
                     <!-- Printer Row -->
-                    <materialDesign:Card Grid.Row="0" Padding="15" Margin="0,0,0,15" materialDesign:ElevationAssist.Elevation="Dp2">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Printer" VerticalAlignment="Center" Margin="0,0,10,0" Width="24" Height="24" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
-                            <TextBlock Text="Target Printer:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
-                            <ComboBox ItemsSource="{Binding AvailablePrinters}"
-                                      SelectedItem="{Binding SelectedPrinter}"
-                                      materialDesign:HintAssist.Hint="Select a printer"
-                                      Width="320" Margin="0,0,15,0"
-                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
-                            <Button Content="REFRESH" Command="{Binding RefreshPrintersCommand}" Style="{StaticResource MaterialDesignFlatButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,10,0"/>
-                            <Button Content="SYNC TO CLOUD" Command="{Binding SyncPrintersCommand}" Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                    <materialDesign:Card Grid.Row="1" Padding="15" Margin="0,0,0,15" materialDesign:ElevationAssist.Elevation="Dp2">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                <materialDesign:PackIcon Kind="Printer" VerticalAlignment="Center" Margin="0,0,10,0" Width="24" Height="24" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                <TextBlock Text="Target Printer:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
+                                <ComboBox ItemsSource="{Binding AvailablePrinters}"
+                                          SelectedItem="{Binding SelectedPrinter}"
+                                          materialDesign:HintAssist.Hint="Select a printer"
+                                          Width="320" Margin="0,0,15,0"
+                                          Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
+                                <Button Content="REFRESH" Command="{Binding RefreshPrintersCommand}" Style="{StaticResource MaterialDesignFlatButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,10,0"/>
+                                <Button Content="SYNC TO CLOUD" Command="{Binding SyncPrintersCommand}" Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Eye" VerticalAlignment="Center" Margin="0,0,10,0" Width="24" Height="24" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                <TextBlock Text="Show Print Preview:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
+                                <ToggleButton IsChecked="{Binding ShowPrintPreview}" Style="{StaticResource MaterialDesignSwitchToggleButton}" ToolTip="Show a preview window before printing" />
+                            </StackPanel>
                         </StackPanel>
                     </materialDesign:Card>
 
                     <!-- Drop Zone -->
-                    <materialDesign:Card Grid.Row="1" Margin="0,0,0,15" materialDesign:ElevationAssist.Elevation="Dp1" UniformCornerRadius="8"
+                    <materialDesign:Card Grid.Row="2" Margin="0,0,0,15" materialDesign:ElevationAssist.Elevation="Dp1" UniformCornerRadius="8"
                                          AllowDrop="True" Drop="DropZone_Drop">
                         <Border BorderThickness="1" BorderBrush="{DynamicResource PrimaryHueMidBrush}" CornerRadius="8">
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -89,7 +104,7 @@
                     </materialDesign:Card>
 
                     <!-- Logs -->
-                    <materialDesign:Card Grid.Row="2" Padding="10" Margin="0,0,0,10" materialDesign:ElevationAssist.Elevation="Dp1">
+                    <materialDesign:Card Grid.Row="3" Padding="10" Margin="0,0,0,10" materialDesign:ElevationAssist.Elevation="Dp1">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
                                 <materialDesign:PackIcon Kind="ViewList" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
@@ -113,7 +128,7 @@
                     </materialDesign:Card>
 
                     <!-- Status Bar -->
-                    <Grid Grid.Row="3" Margin="5,0">
+                    <Grid Grid.Row="4" Margin="5,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -127,7 +142,10 @@
                                 <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16"/>
                             </Button>
                         </StackPanel>
-                        <TextBlock Grid.Column="2" Text="{Binding StatusText}" VerticalAlignment="Center" Opacity="0.7"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,15,0"/>
+                            <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}" VerticalAlignment="Center" Opacity="0.5" FontSize="11"/>
+                        </StackPanel>
                     </Grid>
                 </Grid>
             </TabItem>

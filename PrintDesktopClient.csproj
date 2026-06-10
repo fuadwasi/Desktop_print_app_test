@@ -8,12 +8,19 @@
     <UseWPF>true</UseWPF>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <Version>1.1.0</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\Images\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- WPF framework references required explicitly on net48 -->
     <Reference Include="ReachFramework" />
     <Reference Include="System.Printing" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
 
   <ItemGroup>

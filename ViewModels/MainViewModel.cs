@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System;
 using MaterialDesignThemes.Wpf;
+using PrintDesktopClient.Models;
 
 namespace PrintDesktopClient.ViewModels
 {
@@ -20,9 +21,12 @@ namespace PrintDesktopClient.ViewModels
 
         // ── Observable Properties ─────────────────────────────────────────────
 
+        public string AppVersion => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+
         [ObservableProperty] private string _statusText = "Ready";
         [ObservableProperty] private string _mqttStatus = "Disconnected";
         [ObservableProperty] private string _selectedPrinter = string.Empty;
+        [ObservableProperty] private bool _showPrintPreview = false;
 
         // MQTT settings
         [ObservableProperty] private string _mqttBroker = string.Empty;
@@ -70,6 +74,7 @@ namespace PrintDesktopClient.ViewModels
             _deviceAccountId          = _configurationService.DeviceAccountId;
             _apiSecret                = _configurationService.GetApiSecret();
             _deviceGuid               = _configurationService.DeviceGuid;
+            _showPrintPreview         = _configurationService.ShowPrintPreview;
 
             // ── MQTT event bindings ────────────────────────────────────────────
 
@@ -153,13 +158,52 @@ namespace PrintDesktopClient.ViewModels
 
         public void PrintFile(string filePath)
         {
-            if (string.IsNullOrEmpty(SelectedPrinter))
+            bool userConfirmed = true;
+            AdvancedPrintOptions? printOptions = null;
+
+            if (ShowPrintPreview && filePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
-                _notificationService.Notify("No printer selected!", isError: true);
+                Dispatch(() =>
+                {
+                    try
+                    {
+                        var pdfBytes = File.ReadAllBytes(filePath);
+                        var previewWindow = new PrintPreviewWindow(pdfBytes, AvailablePrinters.ToList(), SelectedPrinter);
+                        userConfirmed = previewWindow.ShowDialog() == true;
+                        if (userConfirmed)
+                        {
+                            printOptions = previewWindow.SelectedOptions;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logs.Add($"Preview failed: {ex.Message}");
+                        userConfirmed = false;
+                    }
+                });
+            }
+
+            if (!userConfirmed)
+            {
+                Dispatch(() => Logs.Add($"Print cancelled by user: {Path.GetFileName(filePath)}"));
                 return;
             }
+
             Dispatch(() => Logs.Add($"Queueing: {Path.GetFileName(filePath)}"));
-            bool ok = _printerService.PrintFile(filePath, SelectedPrinter);
+            bool ok = false;
+            
+            if (printOptions != null)
+            {
+                // We have a PDF and advanced options from the preview
+                var pdfBytes = File.ReadAllBytes(filePath);
+                ok = _printerService.PrintPdfBytes(pdfBytes, printOptions);
+            }
+            else
+            {
+                // Normal fallback
+                ok = _printerService.PrintFile(filePath, SelectedPrinter);
+            }
+
             _notificationService.Notify(ok
                 ? $"Sent to printer: {Path.GetFileName(filePath)}"
                 : $"Print failed: {Path.GetFileName(filePath)}", !ok);
@@ -266,8 +310,42 @@ namespace PrintDesktopClient.ViewModels
                     return;
                 }
 
+                bool userConfirmed = true;
+                AdvancedPrintOptions? printOptions = null;
+
+                if (ShowPrintPreview)
+                {
+                    Dispatch(() =>
+                    {
+                        try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
+                        var previewWindow = new PrintPreviewWindow(pdfBytes, AvailablePrinters.ToList(), selectedPrinter);
+                        userConfirmed = previewWindow.ShowDialog() == true;
+                        if (userConfirmed)
+                        {
+                            printOptions = previewWindow.SelectedOptions;
+                        }
+                    });
+                }
+
+                if (!userConfirmed)
+                {
+                    Dispatch(() => Logs.Add($"[JOB {jobId}] Cancelled by user in preview."));
+                    await _apiService.UpdateJobStatusAsync(jobId, false, "Cancelled by user at preview stage.");
+                    _notificationService.Notify($"Job {jobId}: Cancelled.");
+                    return;
+                }
+
                 Dispatch(() => Logs.Add($"[JOB {jobId}] Downloaded {pdfBytes.Length:N0} bytes. Printing..."));
-                bool printed = _printerService.PrintPdfBytes(pdfBytes, selectedPrinter);
+                
+                bool printed = false;
+                if (printOptions != null)
+                {
+                    printed = _printerService.PrintPdfBytes(pdfBytes, printOptions);
+                }
+                else
+                {
+                    printed = _printerService.PrintPdfBytes(pdfBytes, selectedPrinter);
+                }
 
                 await _apiService.UpdateJobStatusAsync(jobId, printed,
                     printed ? string.Empty : "Printing returned failure.");
@@ -322,6 +400,12 @@ namespace PrintDesktopClient.ViewModels
                 _configurationService.SelectedPrinter = value;
                 Logs.Add($"Printer selected: {value}");
             }
+        }
+
+        partial void OnShowPrintPreviewChanged(bool value)
+        {
+            _configurationService.ShowPrintPreview = value;
+            Logs.Add($"Show Print Preview changed to: {value}");
         }
 
         private static void Dispatch(Action action) =>

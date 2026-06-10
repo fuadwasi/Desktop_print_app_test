@@ -15,6 +15,7 @@ namespace PrintDesktopClient.Services
         public string MqttTopic { get; set; } = "home/printer/print";
         public int ReconnectIntervalSeconds { get; set; } = 10;
         public string SelectedPrinter { get; set; } = string.Empty;
+        public bool ShowPrintPreview { get; set; } = false;
 
         // Cloud API
         public string ApiBaseUrl { get; set; } = "https://localhost:5001";
@@ -79,6 +80,12 @@ namespace PrintDesktopClient.Services
         {
             get => _userSettings.SelectedPrinter;
             set { _userSettings.SelectedPrinter = value; SaveSettings(); }
+        }
+
+        public bool ShowPrintPreview
+        {
+            get => _userSettings.ShowPrintPreview;
+            set { _userSettings.ShowPrintPreview = value; SaveSettings(); }
         }
 
         // ── Cloud API ─────────────────────────────────────────────────────────

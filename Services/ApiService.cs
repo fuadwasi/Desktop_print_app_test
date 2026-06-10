@@ -57,7 +57,8 @@ namespace PrintDesktopClient.Services
         Signaled    = 2,
         Downloading = 3,
         Printed     = 4,
-        Failed      = 5
+        Failed      = 5,
+        Canceled      = 5
     }
 
     // ── Service ───────────────────────────────────────────────────────────────

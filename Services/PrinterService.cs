@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using PdfiumViewer;
 using System.Drawing.Printing;
+using PrintDesktopClient.Models;
 
 namespace PrintDesktopClient.Services
 {
@@ -103,6 +104,28 @@ namespace PrintDesktopClient.Services
             }
         }
 
+        /// <summary>
+        /// Saves <paramref name="pdfBytes"/> to a temp file, prints it silently with advanced options,
+        /// then deletes the temp file.
+        /// </summary>
+        public bool PrintPdfBytes(byte[] pdfBytes, AdvancedPrintOptions options)
+        {
+            var tmp = Path.Combine(Path.GetTempPath(), $"print_{Guid.NewGuid()}.pdf");
+            try
+            {
+                File.WriteAllBytes(tmp, pdfBytes);
+                return PrintPdfFile(tmp, options);
+            }
+            finally
+            {
+                if (File.Exists(tmp))
+                {
+                    Thread.Sleep(500);
+                    try { File.Delete(tmp); } catch { /* best-effort */ }
+                }
+            }
+        }
+
         // ── PDF printing via Windows Shell (no external dependencies) ─────────
 
         private bool PrintPdfFile(string pdfPath, string printerName)
@@ -114,6 +137,28 @@ namespace PrintDesktopClient.Services
                     using (var printDocument = document.CreatePrintDocument())
                     {
                         printDocument.PrinterSettings.PrinterName = printerName;
+                        printDocument.PrintController = new StandardPrintController(); // Silent printing
+                        printDocument.Print();
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"PDF printing failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        private bool PrintPdfFile(string pdfPath, AdvancedPrintOptions options)
+        {
+            try
+            {
+                using (var document = PdfDocument.Load(pdfPath))
+                {
+                    using (var printDocument = new CustomPdfPrintDocument(document, options))
+                    {
+                        printDocument.PrinterSettings.PrinterName = options.PrinterName;
                         printDocument.PrintController = new StandardPrintController(); // Silent printing
                         printDocument.Print();
                     }
