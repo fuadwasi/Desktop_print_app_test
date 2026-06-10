@@ -2,16 +2,21 @@ using System;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows;
+using Hardcodet.Wpf.TaskbarNotification;
+using PrintDesktopClient.Services;
 using PrintDesktopClient.ViewModels;
 
 namespace PrintDesktopClient
 {
     public partial class MainWindow : Window
     {
-        public MainWindow(MainViewModel viewModel)
+        private readonly NotificationService _notificationService;
+
+        public MainWindow(MainViewModel viewModel, NotificationService notificationService)
         {
             InitializeComponent();
             DataContext = viewModel;
+            _notificationService = notificationService;
             this.Loaded += MainWindow_Loaded;
         }
 
@@ -23,6 +28,23 @@ namespace PrintDesktopClient
                 MyNotifyIcon.Visibility = Visibility.Visible;
             }
             catch { /* best-effort */ }
+
+            // ── Wire balloon tip notifications (Windows 7 compatible) ──────────
+            // NotificationService fires OnNotification; we show a tray balloon.
+            _notificationService.OnNotification += (msg, isError) =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        MyNotifyIcon.ShowBalloonTip(
+                            "Auto-Print Agent",
+                            msg,
+                            isError ? BalloonIcon.Error : BalloonIcon.Info);
+                    }
+                    catch { /* best-effort: balloon tips may be suppressed by Windows settings */ }
+                });
+            };
         }
 
         // ── Drag & Drop ───────────────────────────────────────────────────────

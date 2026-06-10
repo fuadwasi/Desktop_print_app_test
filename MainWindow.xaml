@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        xmlns:tb="clr-namespace:H.NotifyIcon;assembly=H.NotifyIcon.Wpf"
+        xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:local="clr-namespace:PrintDesktopClient"
         xmlns:vm="clr-namespace:PrintDesktopClient.ViewModels"
         mc:Ignorable="d"
@@ -23,7 +23,6 @@
         <tb:TaskbarIcon x:Name="MyNotifyIcon"
                         Visibility="Visible"
                         ToolTipText="Auto-Print Agent"
-                        MenuActivation="LeftOrRightClick"
                         TrayMouseDoubleClick="MyNotifyIcon_TrayMouseDoubleClick">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>

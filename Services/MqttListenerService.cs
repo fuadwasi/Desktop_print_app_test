@@ -13,7 +13,12 @@ namespace PrintDesktopClient.Services
 {
     // ── Command payload shapes ─────────────────────────────────────────────────
 
-    public record MqttCommand(string Type, string JobId, string PrinterName);
+    public class MqttCommand
+    {
+        public string Type        { get; set; } = string.Empty;
+        public string JobId       { get; set; } = string.Empty;
+        public string PrinterName { get; set; } = string.Empty;
+    }
 
     // ── Service ───────────────────────────────────────────────────────────────
 
@@ -146,7 +151,8 @@ namespace PrintDesktopClient.Services
 
         private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
         {
-            var raw = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
+            var seg = e.ApplicationMessage.PayloadSegment;
+            var raw = Encoding.UTF8.GetString(seg.Array ?? new byte[0], seg.Offset, seg.Count);
             _logger.LogInformation("MQTT Message: {Payload}", raw);
 
             // Try to parse as a structured command first
