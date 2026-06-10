@@ -6,8 +6,10 @@ using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using System.Net.Http;
 using MaterialDesignThemes.Wpf;
 using PrintDesktopClient.Models;
+using System.Collections.Generic;
 
 namespace PrintDesktopClient.ViewModels
 {
@@ -15,8 +17,7 @@ namespace PrintDesktopClient.ViewModels
     {
         private readonly PrinterService _printerService;
         private readonly ConfigurationService _configurationService;
-        private readonly MqttListenerService _mqttService;
-        private readonly ApiService _apiService;
+        private readonly ProfileSessionManager _sessionManager;
         private readonly NotificationService _notificationService;
 
         // ── Observable Properties ─────────────────────────────────────────────
@@ -26,25 +27,36 @@ namespace PrintDesktopClient.ViewModels
         [ObservableProperty] private string _statusText = "Ready";
         [ObservableProperty] private string _mqttStatus = "Disconnected";
         [ObservableProperty] private string _selectedPrinter = string.Empty;
-        [ObservableProperty] private bool _showPrintPreview = false;
+        [ObservableProperty] private bool _editingShowPrintPreview = false;
 
-        // MQTT settings
+        // Form View visibility bindings
+        [ObservableProperty] private bool _isProfileListViewVisible = true;
+        [ObservableProperty] private bool _isProfileFormViewVisible = false;
+        [ObservableProperty] private string _formTitle = "Create Profile";
+
+        // MQTT settings (bound to the form inputs)
         [ObservableProperty] private string _mqttBroker = string.Empty;
         [ObservableProperty] private string _mqttUsername = string.Empty;
         [ObservableProperty] private string _mqttPassword = string.Empty;
         [ObservableProperty] private string _mqttTopic = string.Empty;
         [ObservableProperty] private int    _reconnectIntervalSeconds = 10;
 
-        // Cloud / API settings
+        // Cloud / API settings (bound to the form inputs)
         [ObservableProperty] private string _apiBaseUrl = string.Empty;
         [ObservableProperty] private string _deviceAccountId = string.Empty;
         [ObservableProperty] private string _apiSecret = string.Empty;
         [ObservableProperty] private string _deviceGuid = string.Empty;
 
-        // Status indicators
+        // Connection test results
         [ObservableProperty] private string _apiTestResult = string.Empty;
+        [ObservableProperty] private string _mqttTestResult = string.Empty;
         [ObservableProperty] private bool   _isRevoked = false;
 
+        // Profile Selection & Form State
+        [ObservableProperty] private ProfileItemViewModel? _editingProfileVM;
+        [ObservableProperty] private string _editingProfileName = string.Empty;
+
+        public ObservableCollection<ProfileItemViewModel> ProfilesList { get; } = new();
         public ObservableCollection<string> AvailablePrinters { get; } = new();
         public ObservableCollection<string> Logs { get; } = new();
         public SnackbarMessageQueue MessageQueue { get; } = new();
@@ -54,64 +66,48 @@ namespace PrintDesktopClient.ViewModels
         public MainViewModel(
             PrinterService printerService,
             ConfigurationService configurationService,
-            MqttListenerService mqttService,
-            ApiService apiService,
+            ProfileSessionManager sessionManager,
             NotificationService notificationService)
         {
             _printerService       = printerService;
             _configurationService = configurationService;
-            _mqttService          = mqttService;
-            _apiService           = apiService;
+            _sessionManager       = sessionManager;
             _notificationService  = notificationService;
 
-            // Load persisted values into VM
-            _mqttBroker               = _configurationService.MqttBroker;
-            _mqttUsername             = _configurationService.MqttUsername;
-            _mqttPassword             = _configurationService.GetMqttPassword();
-            _mqttTopic                = _configurationService.MqttTopic;
-            _reconnectIntervalSeconds = _configurationService.ReconnectIntervalSeconds;
-            _apiBaseUrl               = _configurationService.ApiBaseUrl;
-            _deviceAccountId          = _configurationService.DeviceAccountId;
-            _apiSecret                = _configurationService.GetApiSecret();
-            _deviceGuid               = _configurationService.DeviceGuid;
-            _showPrintPreview         = _configurationService.ShowPrintPreview;
-
-            // ── MQTT event bindings ────────────────────────────────────────────
-
-            _mqttService.OnMessageReceived += msg => Dispatch(() =>
+            // Load profiles list into ViewModel wrappers
+            foreach (var p in _configurationService.Profiles)
             {
-                Logs.Add($"[MQTT TEXT] {msg}");
-                _notificationService.Notify("New MQTT text message received.");
+                var session = _sessionManager.GetSession(p.Id);
+                var status = session != null ? session.MqttStatus : "Disconnected";
+                ProfilesList.Add(new ProfileItemViewModel(p, status));
+            }
+
+            // Subscribe to session manager events
+            _sessionManager.SessionAdded += RegisterSessionEvents;
+            _sessionManager.SessionMqttStatusChanged += (session, status) => Dispatch(() =>
+            {
+                UpdateMqttStatusSummary();
+                var item = ProfilesList.FirstOrDefault(x => x.Profile.Id == session.Profile.Id);
+                if (item != null)
+                {
+                    item.MqttStatus = status;
+                }
+
+                if (status == "Disconnected" && session.Profile.IsEnabled)
+                {
+                    _notificationService.Notify($"[{session.Profile.Name}] MQTT Connection lost!", isError: true);
+                }
+                else if (status == "Connected")
+                {
+                    _notificationService.Notify($"[{session.Profile.Name}] MQTT Connected!");
+                }
             });
 
-            string lastMqttStatus = "";
-            _mqttService.StatusChanged += status => Dispatch(() =>
+            // Register existing sessions
+            foreach (var session in _sessionManager.Sessions)
             {
-                MqttStatus = status;
-                if (status == "Disconnected" && lastMqttStatus != "Disconnected")
-                {
-                    _notificationService.Notify("MQTT Connection lost!", isError: true);
-                }
-                else if (status == "Connected" && lastMqttStatus != "Connected")
-                {
-                    _notificationService.Notify("MQTT Connected!");
-                }
-                lastMqttStatus = status;
-            });
-
-            // Print command: download job PDF and print silently
-            _mqttService.OnPrintCommand += async (jobId, printerName) =>
-            {
-                Dispatch(() => Logs.Add($"[MQTT PRINT] JobId: {jobId} Printer: {printerName}"));
-                await ExecutePrintJobAsync(jobId, printerName);
-            };
-
-            // Sync command: push printers to cloud
-            _mqttService.OnSyncCommand += async () =>
-            {
-                Dispatch(() => Logs.Add("[MQTT SYNC] Printer sync commanded by cloud."));
-                await SyncPrintersToCloud();
-            };
+                RegisterSessionEvents(session);
+            }
 
             // Notifications pipe → Snackbar
             _notificationService.OnNotification += (msg, _) => Dispatch(() =>
@@ -122,14 +118,285 @@ namespace PrintDesktopClient.ViewModels
 
             RefreshPrinters();
 
-            // Restore printer selection
-            if (!string.IsNullOrEmpty(_configurationService.SelectedPrinter) &&
-                AvailablePrinters.Contains(_configurationService.SelectedPrinter))
-                SelectedPrinter = _configurationService.SelectedPrinter;
+            // Restore printer selection using the first profile's target printer if available
+            var firstProfile = _configurationService.Profiles.FirstOrDefault();
+            if (firstProfile != null && !string.IsNullOrEmpty(firstProfile.SelectedPrinter) &&
+                AvailablePrinters.Contains(firstProfile.SelectedPrinter))
+                SelectedPrinter = firstProfile.SelectedPrinter;
             else if (AvailablePrinters.Any())
                 SelectedPrinter = AvailablePrinters.First();
 
-            Logs.Add($"Application initialized. DeviceGuid: {_deviceGuid}");
+            UpdateMqttStatusSummary();
+            Logs.Add("Application initialized with profile list architecture.");
+        }
+
+        private void RegisterSessionEvents(ProfileSession session)
+        {
+            session.MqttService.OnMessageReceived += msg => Dispatch(() =>
+            {
+                Logs.Add($"[{session.Profile.Name}] [MQTT TEXT] {msg}");
+                _notificationService.Notify($"[{session.Profile.Name}] New MQTT text message.");
+            });
+
+            session.MqttService.OnPrintCommand += async (jobId, printerName) =>
+            {
+                Dispatch(() => Logs.Add($"[{session.Profile.Name}] [MQTT PRINT] JobId: {jobId} Printer: {printerName}"));
+                await ExecutePrintJobAsync(session, jobId, printerName);
+            };
+
+            session.MqttService.OnSyncCommand += async () =>
+            {
+                Dispatch(() => Logs.Add($"[{session.Profile.Name}] [MQTT SYNC] Printer sync commanded by cloud."));
+                await SyncPrintersToCloud(session);
+            };
+
+            session.MqttService.OnRevokeCommand += () => Dispatch(() =>
+            {
+                TriggerRevocation(session.Profile.Id);
+            });
+
+            session.ApiService.OnUnauthorized += () => Dispatch(() =>
+            {
+                TriggerRevocation(session.Profile.Id);
+            });
+        }
+
+        private void UpdateMqttStatusSummary()
+        {
+            var active = ProfilesList.Count(p => p.IsEnabled);
+            var connected = _sessionManager.Sessions.Count(s => s.MqttStatus == "Connected" && s.Profile.IsEnabled);
+            MqttStatus = $"{connected}/{active} Connected";
+        }
+
+        // ── Navigation & Form Actions ─────────────────────────────────────────
+
+        [RelayCommand]
+        public void NavigateToCreate()
+        {
+            FormTitle = "Create Profile";
+            EditingProfileVM = null;
+
+            // Load default/empty form values
+            EditingProfileName = string.Empty;
+            MqttBroker = "mqttserver.test";
+            MqttUsername = "mqttuser";
+            MqttPassword = string.Empty;
+            MqttTopic = "home/printer/print";
+            ReconnectIntervalSeconds = 10;
+            EditingShowPrintPreview = false;
+            ApiBaseUrl = "https://localhost:5001";
+            DeviceAccountId = string.Empty;
+            ApiSecret = string.Empty;
+            DeviceGuid = Guid.NewGuid().ToString();
+
+            ApiTestResult = string.Empty;
+            MqttTestResult = string.Empty;
+
+            // Switch view
+            IsProfileListViewVisible = false;
+            IsProfileFormViewVisible = true;
+        }
+
+        [RelayCommand]
+        public void NavigateToEdit(ProfileItemViewModel profileVM)
+        {
+            FormTitle = "Edit Profile";
+            EditingProfileVM = profileVM;
+
+            // Load values from settings
+            EditingProfileName = profileVM.Profile.Name;
+            MqttBroker = profileVM.Profile.MqttBroker;
+            MqttUsername = profileVM.Profile.MqttUsername;
+            MqttPassword = _configurationService.GetMqttPassword(profileVM.Profile.Id);
+            MqttTopic = profileVM.Profile.MqttTopic;
+            ReconnectIntervalSeconds = profileVM.Profile.ReconnectIntervalSeconds;
+            EditingShowPrintPreview = profileVM.Profile.ShowPrintPreview;
+            ApiBaseUrl = profileVM.Profile.ApiBaseUrl;
+            DeviceAccountId = profileVM.Profile.DeviceAccountId;
+            ApiSecret = _configurationService.GetApiSecret(profileVM.Profile.Id);
+            DeviceGuid = profileVM.Profile.DeviceGuid;
+
+            ApiTestResult = string.Empty;
+            MqttTestResult = string.Empty;
+
+            // Switch view
+            IsProfileListViewVisible = false;
+            IsProfileFormViewVisible = true;
+        }
+
+        [RelayCommand]
+        public void NavigateBack()
+        {
+            IsProfileListViewVisible = true;
+            IsProfileFormViewVisible = false;
+            EditingProfileVM = null;
+        }
+
+        [RelayCommand]
+        public async Task SaveProfile()
+        {
+            if (string.IsNullOrWhiteSpace(EditingProfileName))
+            {
+                _notificationService.Notify("Profile Name is required.", isError: true);
+                return;
+            }
+
+            // Check duplicate names
+            bool duplicate = _configurationService.Profiles.Any(p => 
+                p.Name.Equals(EditingProfileName, StringComparison.OrdinalIgnoreCase) && 
+                (EditingProfileVM == null || p.Id != EditingProfileVM.Profile.Id));
+
+            if (duplicate)
+            {
+                _notificationService.Notify("A profile with this name already exists.", isError: true);
+                return;
+            }
+
+            ProfileSettings profile;
+
+            if (EditingProfileVM == null)
+            {
+                // Creating a new profile
+                profile = new ProfileSettings
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    IsEnabled = true // Active by default
+                };
+            }
+            else
+            {
+                // Editing existing
+                profile = EditingProfileVM.Profile;
+            }
+
+            profile.Name = EditingProfileName;
+            profile.MqttBroker = MqttBroker;
+            profile.MqttUsername = MqttUsername;
+            profile.MqttTopic = MqttTopic;
+            profile.ReconnectIntervalSeconds = ReconnectIntervalSeconds;
+            profile.ShowPrintPreview = EditingShowPrintPreview;
+            profile.ApiBaseUrl = ApiBaseUrl;
+            profile.DeviceAccountId = DeviceAccountId;
+            profile.DeviceGuid = DeviceGuid;
+
+            _configurationService.SaveMqttPassword(profile.Id, MqttPassword);
+            _configurationService.SaveApiSecret(profile.Id, ApiSecret);
+
+            if (EditingProfileVM == null)
+            {
+                _configurationService.Profiles.Add(profile);
+                _configurationService.SaveSettings();
+
+                var newVM = new ProfileItemViewModel(profile);
+                ProfilesList.Add(newVM);
+                
+                await _sessionManager.StartSessionAsync(profile);
+                Logs.Add($"Profile '{profile.Name}' created and connected.");
+            }
+            else
+            {
+                _configurationService.SaveSettings();
+
+                // Propagate property notifications
+                EditingProfileVM.Name = profile.Name;
+                EditingProfileVM.ShowPrintPreview = profile.ShowPrintPreview;
+                
+                await _sessionManager.RestartSessionAsync(profile);
+                Logs.Add($"Profile '{profile.Name}' updated and session restarted.");
+            }
+
+            UpdateMqttStatusSummary();
+            NavigateBack();
+        }
+
+        [RelayCommand]
+        public async Task DeleteProfile(ProfileItemViewModel profileVM)
+        {
+            if (ProfilesList.Count <= 1)
+            {
+                _notificationService.Notify("At least one profile is required.", isError: true);
+                return;
+            }
+
+            var result = System.Windows.MessageBox.Show(
+                $"Are you sure you want to delete profile '{profileVM.Name}'?",
+                "Delete Profile", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                await _sessionManager.StopSessionAsync(profileVM.Profile.Id);
+                _configurationService.Profiles.Remove(profileVM.Profile);
+                _configurationService.WipeCredentials(profileVM.Profile.Id);
+                _configurationService.SaveSettings();
+                ProfilesList.Remove(profileVM);
+
+                UpdateMqttStatusSummary();
+                Logs.Add($"Profile '{profileVM.Name}' deleted.");
+            }
+        }
+
+        [RelayCommand]
+        public async Task ToggleProfileEnabled(ProfileItemViewModel profileVM)
+        {
+            _configurationService.SaveSettings();
+            if (profileVM.IsEnabled)
+            {
+                await _sessionManager.StartSessionAsync(profileVM.Profile);
+            }
+            else
+            {
+                await _sessionManager.StopSessionAsync(profileVM.Profile.Id);
+                profileVM.MqttStatus = "Disconnected";
+            }
+            UpdateMqttStatusSummary();
+            Logs.Add($"Profile '{profileVM.Name}' toggled active: {profileVM.IsEnabled}");
+        }
+
+        [RelayCommand]
+        public void ToggleProfileShowPrintPreview(ProfileItemViewModel profileVM)
+        {
+            _configurationService.SaveSettings();
+            Logs.Add($"Profile '{profileVM.Name}' toggled ShowPrintPreview: {profileVM.ShowPrintPreview}");
+        }
+
+        // ── Connection Testing ────────────────────────────────────────────────
+
+        [RelayCommand]
+        public async Task TestMqttConnection()
+        {
+            MqttTestResult = "Testing connection...";
+            bool ok = await MqttListenerService.TestConnectionAsync(MqttBroker, MqttUsername, MqttPassword);
+            MqttTestResult = ok ? "✅ Connection Successful" : "❌ Connection Failed";
+            Logs.Add($"MQTT connection test for {MqttBroker}: {MqttTestResult}");
+        }
+
+        [RelayCommand]
+        public async Task TestApiConnection()
+        {
+            ApiTestResult = "Testing reachability...";
+            try
+            {
+                var tempProfile = new ProfileSettings
+                {
+                    ApiBaseUrl = ApiBaseUrl,
+                    DeviceAccountId = DeviceAccountId,
+                    Id = EditingProfileVM?.Profile.Id ?? Guid.NewGuid().ToString()
+                };
+
+                // Temporarily cache secret for testing
+                _configurationService.SaveApiSecret(tempProfile.Id, ApiSecret);
+
+                var tempLogger = Microsoft.Extensions.Logging.Abstractions.NullLogger<ApiService>.Instance;
+                var tempApiService = new ApiService(new HttpClientFactoryShim(), _configurationService, tempProfile, tempLogger);
+                
+                bool ok = await tempApiService.TestApiConnectionAsync();
+                ApiTestResult = ok ? "✅ API Reachable" : "❌ Cannot reach API";
+            }
+            catch (Exception ex)
+            {
+                ApiTestResult = $"❌ Error: {ex.Message}";
+            }
+            Logs.Add($"API test result for {ApiBaseUrl}: {ApiTestResult}");
         }
 
         // ── Printer Commands ──────────────────────────────────────────────────
@@ -161,7 +428,11 @@ namespace PrintDesktopClient.ViewModels
             bool userConfirmed = true;
             AdvancedPrintOptions? printOptions = null;
 
-            if (ShowPrintPreview && filePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            var activeProfile = _sessionManager.Sessions.FirstOrDefault(s => s.Profile.IsEnabled)?.Profile 
+                               ?? _configurationService.Profiles.FirstOrDefault();
+            bool showPreview = activeProfile?.ShowPrintPreview ?? false;
+
+            if (showPreview && filePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
                 Dispatch(() =>
                 {
@@ -194,13 +465,11 @@ namespace PrintDesktopClient.ViewModels
             
             if (printOptions != null)
             {
-                // We have a PDF and advanced options from the preview
                 var pdfBytes = File.ReadAllBytes(filePath);
                 ok = _printerService.PrintPdfBytes(pdfBytes, printOptions);
             }
             else
             {
-                // Normal fallback
                 ok = _printerService.PrintFile(filePath, SelectedPrinter);
             }
 
@@ -209,111 +478,67 @@ namespace PrintDesktopClient.ViewModels
                 : $"Print failed: {Path.GetFileName(filePath)}", !ok);
         }
 
-        // ── MQTT Settings ─────────────────────────────────────────────────────
-
-        [RelayCommand]
-        public async Task SaveMqttSettings()
-        {
-            _configurationService.MqttBroker              = MqttBroker;
-            _configurationService.MqttUsername            = MqttUsername;
-            _configurationService.MqttTopic               = MqttTopic;
-            _configurationService.ReconnectIntervalSeconds = ReconnectIntervalSeconds;
-            _configurationService.SaveMqttPassword(MqttPassword);
-
-            Logs.Add("MQTT settings saved. Re-initializing connection...");
-            await _mqttService.InitializeClientAsync();
-            _notificationService.Notify("MQTT Settings Saved & Applied.");
-        }
-
-        [RelayCommand]
-        public async Task ManualConnect()
-        {
-            Logs.Add("Manual connection attempt started...");
-            await _mqttService.ManualConnectAsync();
-        }
-
-        // ── Cloud / API Settings ──────────────────────────────────────────────
-
-        [RelayCommand]
-        public async Task SaveApiSettings()
-        {
-            _configurationService.ApiBaseUrl      = ApiBaseUrl;
-            _configurationService.DeviceAccountId = DeviceAccountId;
-            _configurationService.SaveApiSecret(ApiSecret);
-
-            Logs.Add("API settings saved. Authenticating...");
-            bool ok = await _apiService.AuthenticateAsync();
-
-            if (ok)
-            {
-                // Re-init MQTT so it uses the new device topic
-                await _mqttService.InitializeClientAsync();
-                _notificationService.Notify("Authentication successful! MQTT re-connected.");
-            }
-            else
-            {
-                _notificationService.Notify("Authentication failed. Check credentials.", isError: true);
-            }
-        }
-
-        [RelayCommand]
-        public async Task TestApiConnection()
-        {
-            ApiTestResult = "Testing…";
-            bool ok = await _apiService.TestApiConnectionAsync();
-            ApiTestResult = ok ? "✅ API Reachable" : "❌ Cannot reach API";
-            Logs.Add($"API test result: {ApiTestResult}");
-        }
-
         // ── Cloud Printer Sync ────────────────────────────────────────────────
 
         [RelayCommand]
         public async Task SyncPrinters()
         {
-            Logs.Add("Syncing printers to cloud...");
-            await SyncPrintersToCloud();
+            // Sync using first active profile session
+            var firstActive = _sessionManager.Sessions.FirstOrDefault(s => s.Profile.IsEnabled);
+            if (firstActive != null)
+            {
+                await SyncPrintersToCloud(firstActive);
+            }
+            else
+            {
+                _notificationService.Notify("No active profiles running to sync printers.", isError: true);
+            }
         }
 
-        private async Task SyncPrintersToCloud()
+        private async Task SyncPrintersToCloud(ProfileSession session)
         {
             var printers = _printerService.GetAvailablePrinters();
-            bool ok = await _apiService.SyncPrintersAsync(printers);
+            bool ok = await session.ApiService.SyncPrintersAsync(printers);
             _notificationService.Notify(ok
-                ? $"Synced {printers.Count} printers to cloud."
-                : "Printer sync failed.", !ok);
-            Dispatch(() => Logs.Add(ok ? $"Printer sync OK ({printers.Count} printers)." : "Printer sync FAILED."));
+                ? $"[{session.Profile.Name}] Synced {printers.Count} printers to cloud."
+                : $"[{session.Profile.Name}] Printer sync failed.", !ok);
+            Dispatch(() => Logs.Add(ok ? $"[{session.Profile.Name}] Printer sync OK ({printers.Count} printers)." : $"[{session.Profile.Name}] Printer sync FAILED."));
         }
 
-        // ── Cloud Print Job Execution (Tasks 5.1 + 5.3) ───────────────────────
+        // ── Cloud Print Job Execution ─────────────────────────────────────────
 
-        private async Task ExecutePrintJobAsync(string jobId, string jobPrinterName)
+        private async Task ExecutePrintJobAsync(ProfileSession session, string jobId, string jobPrinterName)
         {
-            var selectedPrinter = string.IsNullOrEmpty(jobPrinterName)? SelectedPrinter : jobPrinterName;
+            var selectedPrinter = string.IsNullOrEmpty(jobPrinterName)? session.Profile.SelectedPrinter : jobPrinterName;
             if (string.IsNullOrEmpty(selectedPrinter))
             {
-                Dispatch(() => Logs.Add($"[JOB {jobId}] No printer selected – skipping."));
-                await _apiService.UpdateJobStatusAsync(jobId, false, "No printer selected on device.");
+                selectedPrinter = SelectedPrinter;
+            }
+
+            if (string.IsNullOrEmpty(selectedPrinter))
+            {
+                Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] No printer selected – skipping."));
+                await session.ApiService.UpdateJobStatusAsync(jobId, false, "No printer selected on device.");
                 return;
             }
 
-            Dispatch(() => Logs.Add($"[JOB {jobId}] Downloading..."));
+            Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] Downloading..."));
             try
             {
-
-                var pdfBytes = await _apiService.DownloadJobAsync(jobId);
+                var pdfBytes = await session.ApiService.DownloadJobAsync(jobId);
 
                 if (pdfBytes == null || pdfBytes.Length == 0)
                 {
-                    Dispatch(() => Logs.Add($"[JOB {jobId}] Download failed."));
-                    await _apiService.UpdateJobStatusAsync(jobId, false, "PDF download failed.");
-                    _notificationService.Notify($"Job {jobId}: download failed.", isError: true);
+                    Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] Download failed."));
+                    await session.ApiService.UpdateJobStatusAsync(jobId, false, "PDF download failed.");
+                    _notificationService.Notify($"[{session.Profile.Name}] Job {jobId}: download failed.", isError: true);
                     return;
                 }
 
                 bool userConfirmed = true;
                 AdvancedPrintOptions? printOptions = null;
 
-                if (ShowPrintPreview)
+                if (session.Profile.ShowPrintPreview)
                 {
                     Dispatch(() =>
                     {
@@ -329,13 +554,13 @@ namespace PrintDesktopClient.ViewModels
 
                 if (!userConfirmed)
                 {
-                    Dispatch(() => Logs.Add($"[JOB {jobId}] Cancelled by user in preview."));
-                    await _apiService.UpdateJobStatusAsync(jobId, false, "Cancelled by user at preview stage.");
-                    _notificationService.Notify($"Job {jobId}: Cancelled.");
+                    Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] Cancelled by user in preview."));
+                    await session.ApiService.UpdateJobStatusAsync(jobId, false, "Cancelled by user at preview stage.");
+                    _notificationService.Notify($"[{session.Profile.Name}] Job {jobId}: Cancelled.");
                     return;
                 }
 
-                Dispatch(() => Logs.Add($"[JOB {jobId}] Downloaded {pdfBytes.Length:N0} bytes. Printing..."));
+                Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] Downloaded {pdfBytes.Length:N0} bytes. Printing..."));
                 
                 bool printed = false;
                 if (printOptions != null)
@@ -347,68 +572,77 @@ namespace PrintDesktopClient.ViewModels
                     printed = _printerService.PrintPdfBytes(pdfBytes, selectedPrinter);
                 }
 
-                await _apiService.UpdateJobStatusAsync(jobId, printed,
+                await session.ApiService.UpdateJobStatusAsync(jobId, printed,
                     printed ? string.Empty : "Printing returned failure.");
 
                 _notificationService.Notify(printed
-                    ? $"Job {jobId}: printed successfully."
-                    : $"Job {jobId}: print FAILED.", !printed);
+                    ? $"[{session.Profile.Name}] Job {jobId}: printed successfully."
+                    : $"[{session.Profile.Name}] Job {jobId}: print FAILED.", !printed);
 
-                Dispatch(() => Logs.Add($"[JOB {jobId}] {(printed ? "Done." : "FAILED.")}"));
+                Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] {(printed ? "Done." : "FAILED.")}"));
             }
             catch (Exception ex)
             {
-
-                throw;
+                Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] Error: {ex.Message}"));
             }
         }
 
-        // ── Revocation (Task 6.1) ─────────────────────────────────────────────
+        // ── Revocation ────────────────────────────────────────────────────────
 
         [RelayCommand]
         public void WipeCredentials()
         {
+            if (EditingProfileVM == null) return;
+
             var result = System.Windows.MessageBox.Show(
-                "This will permanently delete all device credentials and disconnect from the cloud. Are you sure?",
-                "Disconnect Device", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                $"This will permanently delete credentials for profile '{EditingProfileVM.Name}' and disconnect it. Are you sure?",
+                "Disconnect Profile", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
 
             if (result == System.Windows.MessageBoxResult.Yes)
-                TriggerRevocation();
+                TriggerRevocation(EditingProfileVM.Profile.Id);
         }
 
-        public void TriggerRevocation()
-
+        public void TriggerRevocation(string profileId)
         {
-            Logs.Add("[REVOKE] Device revoked by administrator. Wiping credentials...");
-            _configurationService.WipeCredentials();
+            var p = ProfilesList.FirstOrDefault(x => x.Profile.Id == profileId);
+            if (p == null) return;
 
-            // Reset UI fields
-            DeviceAccountId = string.Empty;
-            ApiSecret       = string.Empty;
-            DeviceGuid      = string.Empty;
-            IsRevoked       = true;
+            Logs.Add($"[REVOKE] Profile '{p.Name}' revoked by administrator. Wiping credentials...");
+            _configurationService.WipeCredentials(p.Profile.Id);
 
-            _notificationService.Notify("Device Revoked by Administrator. Re-enter credentials.", isError: true);
+            Dispatch(() =>
+            {
+                if (EditingProfileVM?.Profile.Id == p.Profile.Id)
+                {
+                    DeviceAccountId = string.Empty;
+                    ApiSecret       = string.Empty;
+                    DeviceGuid      = p.Profile.DeviceGuid;
+                }
+
+                _notificationService.Notify($"Profile '{p.Name}' Revoked by Administrator. Re-enter credentials.", isError: true);
+            });
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
         partial void OnSelectedPrinterChanged(string value)
         {
-            if (!string.IsNullOrEmpty(value))
+            if (!string.IsNullOrEmpty(value) && ProfilesList.Count > 0)
             {
-                _configurationService.SelectedPrinter = value;
-                Logs.Add($"Printer selected: {value}");
+                var firstProfile = ProfilesList.First().Profile;
+                firstProfile.SelectedPrinter = value;
+                _configurationService.SaveSettings();
+                Logs.Add($"Printer selected globally/default: {value}");
             }
         }
 
-        partial void OnShowPrintPreviewChanged(bool value)
-        {
-            _configurationService.ShowPrintPreview = value;
-            Logs.Add($"Show Print Preview changed to: {value}");
-        }
 
         private static void Dispatch(Action action) =>
             System.Windows.Application.Current.Dispatcher.Invoke(action);
+
+        private class HttpClientFactoryShim : IHttpClientFactory
+        {
+            public System.Net.Http.HttpClient CreateClient(string name) => new System.Net.Http.HttpClient();
+        }
     }
 }

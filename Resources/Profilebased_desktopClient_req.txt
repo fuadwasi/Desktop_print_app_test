@@ -1,0 +1,172 @@
+Goal
+Create a detailed implementation plan to redesign the configuration system of my Remote Desktop Client application by introducing a profile-based architecture for managing API and MQTT settings.
+
+Context
+1. Remove Existing Configuration Sections
+
+Completely remove:
+
+“MQTT Section”
+“Cloud Section”
+Any standalone API/MQTT configuration page
+
+
+
+
+2. Introduce Profile-Based Configuration System
+All configuration (API + MQTT) will now live inside Profiles.
+
+3. Profile List Page
+Create a Profile Management Page that displays all profiles.
+Features:
+
+List all profiles in a table/list view
+Each profile row should include:
+
+Profile Name
+MQTT Connection Status (Connected / Disconnected)
+Toggle Switch (Active / Inactive)
+Edit Button
+Delete Button
+
+
+
+Actions:
+
+✅ “Create New Profile” button at the top of the page
+✅ Delete removes the profile
+✅ Toggle activates/deactivates the profile
+
+
+4. Profile Create / Edit Form
+
+Clicking Create → Opens empty profile form
+Clicking Edit → Opens same form pre-filled with profile data
+
+Form Fields:
+
+API Configuration
+MQTT Configuration
+
+Actions:
+
+✅ Test API Connection button
+✅ Test MQTT Connection button
+
+
+5. Active Profile Behavior
+
+Multiple profiles can be active simultaneously
+Only active profiles should maintain MQTT connections
+
+Behavior:
+
+On profile activation:
+
+Establish MQTT connection
+Subscribe to relevant topics
+
+
+On deactivation:
+
+Disconnect MQTT
+
+
+On app startup:
+
+Automatically connect all active profiles
+
+
+
+
+6. MQTT Connection Status Visibility
+
+Show real-time MQTT connection status:
+
+In Profile List Page
+In Profile Edit Page
+
+
+
+
+Expectations
+Generate a structured implementation plan that includes:
+
+1. Architecture
+
+Frontend component structure (Profile List, Form, Status components)
+State management approach (global vs per-profile state)
+MQTT connection manager architecture
+
+
+2. Data Model
+
+Profile schema (including API config, MQTT config, isActive, connection status)
+Storage strategy (local DB, config file, etc.)
+
+
+3. UI/UX Flow
+
+Navigation flow:
+
+List → Create/Edit → Back to List
+
+
+Interaction details for:
+
+Toggle activation
+Connection testing
+Status updates (real-time feedback)
+
+
+
+
+4. MQTT Handling
+
+Managing multiple simultaneous connections
+Subscribing/unsubscribing per profile
+Handling reconnect logic
+Updating UI when connection state changes
+
+
+5. API Integration
+
+Per-profile API configuration usage
+Connection validation and error handling
+
+
+6. Step-by-Step Implementation Plan
+
+Break down into phases:
+
+Refactor/remove old config
+Build profile model
+Build UI
+Integrate MQTT manager
+Testing & validation
+
+
+
+
+7. Edge Cases
+
+Failed API/MQTT connection
+Duplicate profile names
+Rapid toggle on/off
+App restart with mixed profile states
+Network disconnect scenarios
+
+
+✅ Optional (Nice to Include)
+
+Component hierarchy diagram
+Pseudocode for MQTT manager handling multiple profiles
+Suggestions for improving UX or performance
+
+
+💡 Improvement Explanation
+
+Removed unnecessary unified config page
+Strengthened profile-first architecture
+Ensured clarity on multi-profile MQTT behavior
+Reduced ambiguity so Antigravity can produce a cleaner plan

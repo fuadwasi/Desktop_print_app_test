@@ -4,11 +4,17 @@ using System.Text;
 using System.IO;
 using System.Text.Json;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace PrintDesktopClient.Services
 {
-    public class UserSettings
+    public class ProfileSettings
     {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public bool IsEnabled { get; set; } = true;
+
         // MQTT
         public string MqttBroker { get; set; } = "mqttserver.test";
         public string MqttUsername { get; set; } = "mqttuser";
@@ -21,8 +27,25 @@ namespace PrintDesktopClient.Services
         public string ApiBaseUrl { get; set; } = "https://localhost:5001";
         public string DeviceAccountId { get; set; } = string.Empty;
 
-        // Device Identity — generated once, never overwritten
+        // Device Identity — generated once per profile, never overwritten
         public string DeviceGuid { get; set; } = string.Empty;
+    }
+
+    public class UserSettings
+    {
+        public List<ProfileSettings> Profiles { get; set; } = new List<ProfileSettings>();
+        public string SelectedProfileId { get; set; } = string.Empty;
+
+        // Legacy properties for migration:
+        public string MqttBroker { get; set; }
+        public string MqttUsername { get; set; }
+        public string MqttTopic { get; set; }
+        public int? ReconnectIntervalSeconds { get; set; }
+        public string SelectedPrinter { get; set; }
+        public bool? ShowPrintPreview { get; set; }
+        public string ApiBaseUrl { get; set; }
+        public string DeviceAccountId { get; set; }
+        public string DeviceGuid { get; set; }
     }
 
     public class ConfigurationService
@@ -41,119 +64,192 @@ namespace PrintDesktopClient.Services
             _settingsPath = Path.Combine(_dataDir, "settings.json");
 
             _userSettings = LoadSettings();
+        }
 
-            // Ensure DeviceGuid is set exactly once and persisted
-            if (string.IsNullOrEmpty(_userSettings.DeviceGuid))
+        // ── Profiles Management ────────────────────────────────────────────────
+
+        public List<ProfileSettings> Profiles => _userSettings.Profiles;
+
+        public string SelectedProfileId
+        {
+            get => _userSettings.SelectedProfileId;
+            set { _userSettings.SelectedProfileId = value; SaveSettings(); }
+        }
+
+        public ProfileSettings SelectedProfile
+        {
+            get
             {
-                _userSettings.DeviceGuid = Guid.NewGuid().ToString();
-                SaveSettings();
+                var profile = _userSettings.Profiles.FirstOrDefault(p => p.Id == _userSettings.SelectedProfileId);
+                if (profile == null)
+                {
+                    profile = _userSettings.Profiles.FirstOrDefault();
+                    if (profile == null)
+                    {
+                        profile = CreateDefaultProfile();
+                        _userSettings.Profiles.Add(profile);
+                    }
+                    _userSettings.SelectedProfileId = profile.Id;
+                    SaveSettings();
+                }
+                return profile;
             }
         }
 
-        // ── MQTT ──────────────────────────────────────────────────────────────
-
-        public string MqttBroker
+        public void SaveSettings()
         {
-            get => _userSettings.MqttBroker;
-            set { _userSettings.MqttBroker = value; SaveSettings(); }
+            var json = JsonSerializer.Serialize(_userSettings, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_settingsPath, json);
         }
-
-        public string MqttUsername
-        {
-            get => _userSettings.MqttUsername;
-            set { _userSettings.MqttUsername = value; SaveSettings(); }
-        }
-
-        public string MqttTopic
-        {
-            get => _userSettings.MqttTopic;
-            set { _userSettings.MqttTopic = value; SaveSettings(); }
-        }
-
-        public int ReconnectIntervalSeconds
-        {
-            get => _userSettings.ReconnectIntervalSeconds;
-            set { _userSettings.ReconnectIntervalSeconds = value; SaveSettings(); }
-        }
-
-        public string SelectedPrinter
-        {
-            get => _userSettings.SelectedPrinter;
-            set { _userSettings.SelectedPrinter = value; SaveSettings(); }
-        }
-
-        public bool ShowPrintPreview
-        {
-            get => _userSettings.ShowPrintPreview;
-            set { _userSettings.ShowPrintPreview = value; SaveSettings(); }
-        }
-
-        // ── Cloud API ─────────────────────────────────────────────────────────
-
-        public string ApiBaseUrl
-        {
-            get => _userSettings.ApiBaseUrl;
-            set { _userSettings.ApiBaseUrl = value; SaveSettings(); }
-        }
-
-        public string DeviceAccountId
-        {
-            get => _userSettings.DeviceAccountId;
-            set { _userSettings.DeviceAccountId = value; SaveSettings(); }
-        }
-
-        /// <summary>Immutable after first generation.</summary>
-        public string DeviceGuid => _userSettings.DeviceGuid;
 
         // ── Secure Secret Storage (DPAPI) ─────────────────────────────────────
 
-        public string GetMqttPassword()         => LoadSecret("mqtt.dat", "mqtt_entropy.bin", "mqttpass");
-        public void   SaveMqttPassword(string p) => SaveSecret("mqtt.dat", "mqtt_entropy.bin", p);
+        public string GetMqttPassword(string profileId)         => LoadSecret($"mqtt_{profileId}.dat", $"mqtt_entropy_{profileId}.bin", "mqttpass");
+        public void   SaveMqttPassword(string profileId, string p) => SaveSecret($"mqtt_{profileId}.dat", $"mqtt_entropy_{profileId}.bin", p);
 
-        public string GetApiSecret()            => LoadSecret("api_secret.dat", "api_secret_entropy.bin", string.Empty);
-        public void   SaveApiSecret(string s)   => SaveSecret("api_secret.dat", "api_secret_entropy.bin", s);
+        public string GetApiSecret(string profileId)            => LoadSecret($"api_secret_{profileId}.dat", $"api_secret_entropy_{profileId}.bin", string.Empty);
+        public void   SaveApiSecret(string profileId, string s)   => SaveSecret($"api_secret_{profileId}.dat", $"api_secret_entropy_{profileId}.bin", s);
 
         // ── Wipe Credentials (Revocation) ─────────────────────────────────────
 
-        public void WipeCredentials()
+        public void WipeCredentials(string profileId)
         {
-            _userSettings.DeviceAccountId = string.Empty;
-            _userSettings.DeviceGuid = string.Empty; // Force new GUID on next boot
-            DeleteSecretFile("mqtt.dat");
-            DeleteSecretFile("mqtt_entropy.bin");
-            DeleteSecretFile("api_secret.dat");
-            DeleteSecretFile("api_secret_entropy.bin");
+            var p = _userSettings.Profiles.FirstOrDefault(x => x.Id == profileId);
+            if (p != null)
+            {
+                p.DeviceAccountId = string.Empty;
+                p.DeviceGuid = Guid.NewGuid().ToString(); // Reset GUID
+            }
+            DeleteSecretFile($"mqtt_{profileId}.dat");
+            DeleteSecretFile($"mqtt_entropy_{profileId}.bin");
+            DeleteSecretFile($"api_secret_{profileId}.dat");
+            DeleteSecretFile($"api_secret_entropy_{profileId}.bin");
             SaveSettings();
         }
 
-        // ── Persist / Load ────────────────────────────────────────────────────
+        // ── Persist / Load & Migration ────────────────────────────────────────
 
         private UserSettings LoadSettings()
         {
+            UserSettings settings = null;
             if (File.Exists(_settingsPath))
             {
                 try
                 {
                     var json = File.ReadAllText(_settingsPath);
-                    return JsonSerializer.Deserialize<UserSettings>(json) ?? CreateDefaultSettings();
+                    settings = JsonSerializer.Deserialize<UserSettings>(json);
                 }
-                catch { return CreateDefaultSettings(); }
+                catch { }
             }
-            return CreateDefaultSettings();
+
+            if (settings == null)
+            {
+                settings = CreateDefaultSettings();
+            }
+
+            MigrateLegacySettings(settings);
+            return settings;
         }
 
-        private UserSettings CreateDefaultSettings() => new()
+        private ProfileSettings CreateDefaultProfile() => new()
         {
+            Id = Guid.NewGuid().ToString(),
+            Name = "Default",
+            IsEnabled = true,
             MqttBroker = _configuration["Mqtt:Broker"] ?? "mqttserver.test",
             MqttUsername = _configuration["Mqtt:Username"] ?? "mqttuser",
             MqttTopic = _configuration["Mqtt:Topic"] ?? "home/printer/print",
-            ApiBaseUrl = _configuration["Api:BaseUrl"] ?? "https://localhost:5001"
+            ReconnectIntervalSeconds = 10,
+            ApiBaseUrl = _configuration["Api:BaseUrl"] ?? "https://localhost:5001",
+            DeviceGuid = Guid.NewGuid().ToString()
         };
 
-        private void SaveSettings()
+        private UserSettings CreateDefaultSettings()
         {
-            var json = JsonSerializer.Serialize(_userSettings, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_settingsPath, json);
+            var settings = new UserSettings();
+            var defaultProfile = CreateDefaultProfile();
+            settings.Profiles.Add(defaultProfile);
+            settings.SelectedProfileId = defaultProfile.Id;
+            return settings;
+        }
+
+        private void MigrateLegacySettings(UserSettings settings)
+        {
+            if (settings.Profiles == null)
+            {
+                settings.Profiles = new List<ProfileSettings>();
+            }
+
+            if (settings.Profiles.Count == 0 && (!string.IsNullOrEmpty(settings.ApiBaseUrl) || !string.IsNullOrEmpty(settings.MqttBroker)))
+            {
+                // Migrate legacy settings to a single profile
+                var legacyProfile = new ProfileSettings
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = "Default",
+                    IsEnabled = true,
+                    MqttBroker = settings.MqttBroker ?? "mqttserver.test",
+                    MqttUsername = settings.MqttUsername ?? "mqttuser",
+                    MqttTopic = settings.MqttTopic ?? "home/printer/print",
+                    ReconnectIntervalSeconds = settings.ReconnectIntervalSeconds ?? 10,
+                    SelectedPrinter = settings.SelectedPrinter ?? string.Empty,
+                    ShowPrintPreview = settings.ShowPrintPreview ?? false,
+                    ApiBaseUrl = settings.ApiBaseUrl ?? "https://localhost:5001",
+                    DeviceAccountId = settings.DeviceAccountId ?? string.Empty,
+                    DeviceGuid = settings.DeviceGuid ?? Guid.NewGuid().ToString()
+                };
+
+                settings.Profiles.Add(legacyProfile);
+                settings.SelectedProfileId = legacyProfile.Id;
+
+                // Move secret files
+                MigrateSecretFile("mqtt.dat", $"mqtt_{legacyProfile.Id}.dat");
+                MigrateSecretFile("mqtt_entropy.bin", $"mqtt_entropy_{legacyProfile.Id}.bin");
+                MigrateSecretFile("api_secret.dat", $"api_secret_{legacyProfile.Id}.dat");
+                MigrateSecretFile("api_secret_entropy.bin", $"api_secret_entropy_{legacyProfile.Id}.bin");
+
+                _userSettings = settings;
+                SaveSettings();
+            }
+            else if (settings.Profiles.Count == 0)
+            {
+                var defaultProfile = CreateDefaultProfile();
+                settings.Profiles.Add(defaultProfile);
+                settings.SelectedProfileId = defaultProfile.Id;
+                _userSettings = settings;
+                SaveSettings();
+            }
+
+            // Ensure all profiles have IDs and device GUIDs
+            bool changed = false;
+            foreach (var p in settings.Profiles)
+            {
+                if (string.IsNullOrEmpty(p.Id))
+                {
+                    p.Id = Guid.NewGuid().ToString();
+                    changed = true;
+                }
+                if (string.IsNullOrEmpty(p.DeviceGuid))
+                {
+                    p.DeviceGuid = Guid.NewGuid().ToString();
+                    changed = true;
+                }
+            }
+            if (changed)
+            {
+                _userSettings = settings;
+                SaveSettings();
+            }
+        }
+
+        private void MigrateSecretFile(string oldName, string newName)
+        {
+            var oldPath = Path.Combine(_dataDir, oldName);
+            var newPath = Path.Combine(_dataDir, newName);
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                try { File.Move(oldPath, newPath); } catch { }
+            }
         }
 
         // ── DPAPI helpers ─────────────────────────────────────────────────────

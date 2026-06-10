@@ -25,6 +25,7 @@ namespace PrintDesktopClient.Services
     public class MqttListenerService : IHostedService
     {
         private readonly ConfigurationService _config;
+        private readonly ProfileSettings _profile;
         private readonly PrinterService _printerService;
         private readonly ILogger<MqttListenerService> _logger;
         private IManagedMqttClient? _mqttClient;
@@ -42,12 +43,15 @@ namespace PrintDesktopClient.Services
         /// <summary>Raised when a revoke command is received.</summary>
         public event Action? OnRevokeCommand;
 
-        public MqttListenerService(ConfigurationService config, PrinterService printerService, ILogger<MqttListenerService> logger)
+        public MqttListenerService(ConfigurationService config, ProfileSettings profile, PrinterService printerService, ILogger<MqttListenerService> logger)
         {
             _config = config;
+            _profile = profile;
             _printerService = printerService;
             _logger = logger;
         }
+
+        public ProfileSettings Profile => _profile;
 
         // ── IHostedService ────────────────────────────────────────────────────
 
@@ -64,29 +68,29 @@ namespace PrintDesktopClient.Services
 
         public async Task InitializeClientAsync()
         {
-            _logger.LogInformation("Initializing/Restarting MQTT Client...");
+            _logger.LogInformation("[Profile: {ProfileName}] Initializing/Restarting MQTT Client...", _profile.Name);
 
             if (_mqttClient != null)
             {
                 try { await _mqttClient.StopAsync(); }
-                catch (Exception ex) { _logger.LogError(ex, "Error stopping MQTT client."); }
+                catch (Exception ex) { _logger.LogError(ex, "[Profile: {ProfileName}] Error stopping MQTT client.", _profile.Name); }
             }
 
             var mqttFactory = new MqttFactory();
             _mqttClient = mqttFactory.CreateManagedMqttClient();
 
             // ── LWT (Last Will and Testament) ─────────────────────────────────
-            var deviceAccountId = _config.DeviceAccountId;
+            var deviceAccountId = _profile.DeviceAccountId;
             var statusTopic = string.IsNullOrEmpty(deviceAccountId)
-                ? "devices/unknown/status"
+                ? $"devices/unknown/{_profile.Id}/status"
                 : $"devices/{deviceAccountId}/status";
 
             var willPayload = Encoding.UTF8.GetBytes("{\"state\":\"offline\"}");
 
             var clientOptions = new MqttClientOptionsBuilder()
-                .WithClientId("PrintDesktopClient_" + Guid.NewGuid())
-                .WithTcpServer(_config.MqttBroker)
-                .WithCredentials(_config.MqttUsername, _config.GetMqttPassword())
+                .WithClientId("PrintDesktopClient_" + _profile.Id + "_" + Guid.NewGuid().ToString().Substring(0, 8))
+                .WithTcpServer(_profile.MqttBroker)
+                .WithCredentials(_profile.MqttUsername, _config.GetMqttPassword(_profile.Id))
                 .WithWillTopic(statusTopic)
                 .WithWillPayload(willPayload)
                 .WithWillQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
@@ -94,15 +98,8 @@ namespace PrintDesktopClient.Services
                 .WithCleanSession()
                 .Build();
 
-            //var clientOptions = new MqttClientOptionsBuilder()
-            //    .WithClientId("PrintDesktopClient_" + _config.DeviceAccountId)
-            //    .WithTcpServer(_config.MqttBroker)
-            //    .WithCredentials(_config.MqttUsername, _config.GetMqttPassword())
-            //    .WithCleanSession()
-            //    .Build();
-
             var options = new ManagedMqttClientOptionsBuilder()
-                .WithAutoReconnectDelay(TimeSpan.FromSeconds(_config.ReconnectIntervalSeconds))
+                .WithAutoReconnectDelay(TimeSpan.FromSeconds(_profile.ReconnectIntervalSeconds))
                 .WithClientOptions(clientOptions)
                 .Build();
 
@@ -111,7 +108,7 @@ namespace PrintDesktopClient.Services
             _mqttClient.ConnectedAsync += async e =>
             {
                 StatusChanged?.Invoke("Connected");
-                _logger.LogInformation("MQTT Connected");
+                _logger.LogInformation("[Profile: {ProfileName}] MQTT Connected", _profile.Name);
 
                 // Publish online status immediately on connect
                 if (_mqttClient != null)
@@ -130,7 +127,7 @@ namespace PrintDesktopClient.Services
             _mqttClient.DisconnectedAsync += e =>
             {
                 StatusChanged?.Invoke("Disconnected");
-                _logger.LogWarning("MQTT Disconnected");
+                _logger.LogWarning("[Profile: {ProfileName}] MQTT Disconnected", _profile.Name);
                 return Task.CompletedTask;
             };
 
@@ -138,13 +135,13 @@ namespace PrintDesktopClient.Services
 
             // ── Subscribe to the cloud command topic ──────────────────────────
             var commandTopic = string.IsNullOrEmpty(deviceAccountId)
-                ? _config.MqttTopic                          // Fallback to legacy topic
+                ? _profile.MqttTopic                          // Fallback to legacy topic
                 : $"devices/{deviceAccountId}/commands";
 
             await _mqttClient.SubscribeAsync(commandTopic);
             await _mqttClient.StartAsync(options);
 
-            _logger.LogInformation("Subscribed to topic: {Topic}", commandTopic);
+            _logger.LogInformation("[Profile: {ProfileName}] Subscribed to topic: {Topic}", _profile.Name, commandTopic);
         }
 
         // ── Message routing ───────────────────────────────────────────────────
@@ -153,7 +150,7 @@ namespace PrintDesktopClient.Services
         {
             var seg = e.ApplicationMessage.PayloadSegment;
             var raw = Encoding.UTF8.GetString(seg.Array ?? new byte[0], seg.Offset, seg.Count);
-            _logger.LogInformation("MQTT Message: {Payload}", raw);
+            _logger.LogInformation("[Profile: {ProfileName}] MQTT Message: {Payload}", _profile.Name, raw);
 
             // Try to parse as a structured command first
             try
@@ -166,18 +163,18 @@ namespace PrintDesktopClient.Services
                     switch (cmd.Type.ToLowerInvariant())
                     {
                         case "print":
-                            _logger.LogInformation("Print command received. JobId: {JobId}", cmd.JobId);
+                            _logger.LogInformation("[Profile: {ProfileName}] Print command received. JobId: {JobId}", _profile.Name, cmd.JobId);
                             if (OnPrintCommand != null)
                                 await OnPrintCommand.Invoke(cmd.JobId, cmd.PrinterName);
                             return;
 
                         case "printer_sync":
-                            _logger.LogInformation("Printer sync command received.");
+                            _logger.LogInformation("[Profile: {ProfileName}] Printer sync command received.", _profile.Name);
                             OnSyncCommand?.Invoke();
                             return;
 
                         case "revoke":
-                            _logger.LogWarning("Revoke command received.");
+                            _logger.LogWarning("[Profile: {ProfileName}] Revoke command received.", _profile.Name);
                             OnRevokeCommand?.Invoke();
                             return;
                     }
@@ -191,14 +188,46 @@ namespace PrintDesktopClient.Services
             // Legacy plain-text fallback: print raw text
             OnMessageReceived?.Invoke(raw);
 
-            if (!string.IsNullOrEmpty(_config.SelectedPrinter))
-                _printerService.PrintText(raw, _config.SelectedPrinter);
+            if (!string.IsNullOrEmpty(_profile.SelectedPrinter))
+                _printerService.PrintText(raw, _profile.SelectedPrinter);
             else
-                _logger.LogWarning("MQTT text received but no printer selected.");
+                _logger.LogWarning("[Profile: {ProfileName}] MQTT text received but no printer selected.", _profile.Name);
         }
 
         // ── Manual connect ───────────────────────────────────────────────────
 
         public async Task ManualConnectAsync() => await InitializeClientAsync();
+
+        // ── Test Connection ──────────────────────────────────────────────────
+
+        public static async Task<bool> TestConnectionAsync(string broker, string username, string password)
+        {
+            try
+            {
+                var factory = new MqttFactory();
+                using (var client = factory.CreateMqttClient())
+                {
+                    var options = new MqttClientOptionsBuilder()
+                        .WithTcpServer(broker)
+                        .WithCredentials(username, password)
+                        .Build();
+
+                    using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                    {
+                        await client.ConnectAsync(options, cts.Token);
+                        if (client.IsConnected)
+                        {
+                            await client.DisconnectAsync();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

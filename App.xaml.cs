@@ -45,7 +45,6 @@ namespace PrintDesktopClient
                 var msg = string.Format("[{0:yyyy-MM-dd HH:mm:ss}] DISPATCHER UNHANDLED EXCEPTION{1}{2}{1}{3}{1}",
                     DateTime.Now, Environment.NewLine, args.Exception, new string('-', 80));
                 try { File.AppendAllText(crashLogPath, msg); } catch { /* best-effort */ }
-                // Do NOT set args.Handled = true — let it propagate so Serilog also catches it.
             };
 
             TaskScheduler.UnobservedTaskException += (_, args) =>
@@ -89,9 +88,7 @@ namespace PrintDesktopClient
                     // Services
                     services.AddSingleton<ConfigurationService>();
                     services.AddSingleton<PrinterService>();
-                    services.AddSingleton<ApiService>();
-                    services.AddSingleton<MqttListenerService>();
-                    services.AddHostedService<MqttListenerService>(p => p.GetRequiredService<MqttListenerService>());
+                    services.AddSingleton<ProfileSessionManager>();
                     services.AddSingleton<DocumentProcessingService>();
                     services.AddSingleton<NotificationService>();
                 })
@@ -113,13 +110,9 @@ namespace PrintDesktopClient
 
             await AppHost!.StartAsync();
 
-            // ── Wire revocation across ApiService & MqttListenerService ───────────
-            var apiService  = AppHost.Services.GetRequiredService<ApiService>();
-            var mqttService = AppHost.Services.GetRequiredService<MqttListenerService>();
-            var viewModel   = AppHost.Services.GetRequiredService<MainViewModel>();
-
-            apiService.OnUnauthorized  += () => Dispatcher.Invoke(() => viewModel.TriggerRevocation());
-            mqttService.OnRevokeCommand += () => Dispatcher.Invoke(() => viewModel.TriggerRevocation());
+            // Start all profile sessions
+            var sessionManager = AppHost.Services.GetRequiredService<ProfileSessionManager>();
+            await sessionManager.StartAllAsync();
 
             // ── --background launch mode: tray-only, no window ────────────────────
             bool background = e.Args.Length > 0 && e.Args[0].Equals("--background", StringComparison.OrdinalIgnoreCase);
@@ -130,12 +123,15 @@ namespace PrintDesktopClient
             {
                 mainWindow.Show();
             }
-            // When running in background mode the tray icon (defined in MainWindow.xaml) is
-            // still alive because MainWindow is instantiated; we just don't Show() it.
         }
 
         private async void Application_Exit(object sender, ExitEventArgs e)
         {
+            var sessionManager = AppHost?.Services.GetService<ProfileSessionManager>();
+            if (sessionManager != null)
+            {
+                await sessionManager.StopAllAsync();
+            }
             await AppHost!.StopAsync();
             AppHost.Dispose();
             _singleInstanceMutex?.ReleaseMutex();

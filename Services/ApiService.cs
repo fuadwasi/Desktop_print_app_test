@@ -67,6 +67,7 @@ namespace PrintDesktopClient.Services
     {
         private readonly IHttpClientFactory    _httpFactory;
         private readonly ConfigurationService  _config;
+        private readonly ProfileSettings       _profile;
         private readonly ILogger<ApiService>   _logger;
 
         private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
@@ -74,23 +75,27 @@ namespace PrintDesktopClient.Services
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        public ApiService(IHttpClientFactory httpFactory, ConfigurationService config, ILogger<ApiService> logger)
+        public ApiService(IHttpClientFactory httpFactory, ConfigurationService config, ProfileSettings profile, ILogger<ApiService> logger)
         {
             _httpFactory = httpFactory;
             _config      = config;
+            _profile     = profile;
             _logger      = logger;
         }
+
+        // Expose profile settings for status checking
+        public ProfileSettings Profile => _profile;
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private HttpClient CreateClient()
         {
             var client = _httpFactory.CreateClient("PrintAgent");
-            client.BaseAddress = new Uri(_config.ApiBaseUrl.TrimEnd('/') + "/");
+            client.BaseAddress = new Uri(_profile.ApiBaseUrl.TrimEnd('/') + "/");
             client.DefaultRequestHeaders.Remove("X-Device-Id");
             client.DefaultRequestHeaders.Remove("X-Api-Secret");
-            client.DefaultRequestHeaders.Add("X-Device-Id",  _config.DeviceAccountId);
-            client.DefaultRequestHeaders.Add("X-Api-Secret", _config.GetApiSecret());
+            client.DefaultRequestHeaders.Add("X-Device-Id",  _profile.DeviceAccountId);
+            client.DefaultRequestHeaders.Add("X-Api-Secret", _config.GetApiSecret(_profile.Id));
             return client;
         }
 
@@ -112,34 +117,34 @@ namespace PrintDesktopClient.Services
             try
             {
                 var client = _httpFactory.CreateClient("PrintAgent");
-                client.BaseAddress = new Uri(_config.ApiBaseUrl.TrimEnd('/') + "/");
+                client.BaseAddress = new Uri(_profile.ApiBaseUrl.TrimEnd('/') + "/");
 
                 var body = new AuthenticateRequest(
-                    _config.DeviceAccountId,
-                    _config.GetApiSecret(),
-                    _config.DeviceGuid);
+                    _profile.DeviceAccountId,
+                    _config.GetApiSecret(_profile.Id),
+                    _profile.DeviceGuid);
 
                 var response = await client.PostAsync("api/printagent/authenticate", ToJsonContent(body));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("Authentication successful.");
+                    _logger.LogInformation("[Profile: {ProfileName}] Authentication successful.", _profile.Name);
                     return true;
                 }
 
                 if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
-                    _logger.LogWarning("Authentication returned 401 – triggering revocation.");
+                    _logger.LogWarning("[Profile: {ProfileName}] Authentication returned 401 – triggering revocation.", _profile.Name);
                     OnUnauthorized?.Invoke();
                     return false;
                 }
 
-                _logger.LogWarning("Authentication failed: {StatusCode}", response.StatusCode);
+                _logger.LogWarning("[Profile: {ProfileName}] Authentication failed: {StatusCode}", _profile.Name, response.StatusCode);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Authentication HTTP call failed.");
+                _logger.LogError(ex, "[Profile: {ProfileName}] Authentication HTTP call failed.", _profile.Name);
                 return false;
             }
         }
@@ -152,21 +157,21 @@ namespace PrintDesktopClient.Services
             {
                 var response = await CreateClient().PostAsync(
                     "api/printagent/sync-printers",
-                    ToJsonContent(new SyncPrintersRequest(_config.DeviceGuid, printers)));
+                    ToJsonContent(new SyncPrintersRequest(_profile.DeviceGuid, printers)));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("Printer sync successful.");
+                    _logger.LogInformation("[Profile: {ProfileName}] Printer sync successful.", _profile.Name);
                     return true;
                 }
 
                 await HandleUnauthorized(response);
-                _logger.LogWarning("Printer sync failed: {StatusCode}", response.StatusCode);
+                _logger.LogWarning("[Profile: {ProfileName}] Printer sync failed: {StatusCode}", _profile.Name, response.StatusCode);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SyncPrinters HTTP call failed.");
+                _logger.LogError(ex, "[Profile: {ProfileName}] SyncPrinters HTTP call failed.", _profile.Name);
                 return false;
             }
         }
@@ -182,17 +187,17 @@ namespace PrintDesktopClient.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("Job {JobId} downloaded successfully.", jobId);
+                    _logger.LogInformation("[Profile: {ProfileName}] Job {JobId} downloaded successfully.", _profile.Name, jobId);
                     return await response.Content.ReadAsByteArrayAsync();
                 }
 
                 await HandleUnauthorized(response);
-                _logger.LogWarning("Job download failed: {StatusCode}", response.StatusCode);
+                _logger.LogWarning("[Profile: {ProfileName}] Job download failed: {StatusCode}", _profile.Name, response.StatusCode);
                 return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "DownloadJob HTTP call failed for job {JobId}.", jobId);
+                _logger.LogError(ex, "[Profile: {ProfileName}] DownloadJob HTTP call failed for job {JobId}.", _profile.Name, jobId);
                 return null;
             }
         }
@@ -210,7 +215,7 @@ namespace PrintDesktopClient.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("Job {JobId} status updated to {Status}.", jobId, status);
+                    _logger.LogInformation("[Profile: {ProfileName}] Job {JobId} status updated to {Status}.", _profile.Name, jobId, status);
                     return true;
                 }
 
@@ -219,7 +224,7 @@ namespace PrintDesktopClient.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "UpdateJobStatus HTTP call failed for job {JobId}.", jobId);
+                _logger.LogError(ex, "[Profile: {ProfileName}] UpdateJobStatus HTTP call failed for job {JobId}.", _profile.Name, jobId);
                 return false;
             }
         }
@@ -231,7 +236,7 @@ namespace PrintDesktopClient.Services
             try
             {
                 var client = _httpFactory.CreateClient("PrintAgent");
-                client.BaseAddress = new Uri(_config.ApiBaseUrl.TrimEnd('/') + "/");
+                client.BaseAddress = new Uri(_profile.ApiBaseUrl.TrimEnd('/') + "/");
                 client.Timeout = TimeSpan.FromSeconds(5);
                 var response = await client.GetAsync("health");
                 return response.IsSuccessStatusCode || (int)response.StatusCode < 500;
@@ -251,7 +256,7 @@ namespace PrintDesktopClient.Services
         {
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                _logger.LogWarning("Received 401 – triggering revocation.");
+                _logger.LogWarning("[Profile: {ProfileName}] Received 401 – triggering revocation.", _profile.Name);
                 OnUnauthorized?.Invoke();
             }
             await Task.CompletedTask;

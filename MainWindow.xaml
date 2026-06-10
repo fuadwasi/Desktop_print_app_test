@@ -19,6 +19,9 @@
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{materialDesign:MaterialDesignFont}"
         StateChanged="Window_StateChanged">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Window.Resources>
     <Grid>
         <!-- Tray Icon -->
         <tb:TaskbarIcon x:Name="MyNotifyIcon"
@@ -68,23 +71,16 @@
 
                     <!-- Printer Row -->
                     <materialDesign:Card Grid.Row="1" Padding="15" Margin="0,0,0,15" materialDesign:ElevationAssist.Elevation="Dp2">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                                <materialDesign:PackIcon Kind="Printer" VerticalAlignment="Center" Margin="0,0,10,0" Width="24" Height="24" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
-                                <TextBlock Text="Target Printer:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
-                                <ComboBox ItemsSource="{Binding AvailablePrinters}"
-                                          SelectedItem="{Binding SelectedPrinter}"
-                                          materialDesign:HintAssist.Hint="Select a printer"
-                                          Width="320" Margin="0,0,15,0"
-                                          Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
-                                <Button Content="REFRESH" Command="{Binding RefreshPrintersCommand}" Style="{StaticResource MaterialDesignFlatButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,10,0"/>
-                                <Button Content="SYNC TO CLOUD" Command="{Binding SyncPrintersCommand}" Style="{StaticResource MaterialDesignOutlinedButton}"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="Eye" VerticalAlignment="Center" Margin="0,0,10,0" Width="24" Height="24" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
-                                <TextBlock Text="Show Print Preview:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
-                                <ToggleButton IsChecked="{Binding ShowPrintPreview}" Style="{StaticResource MaterialDesignSwitchToggleButton}" ToolTip="Show a preview window before printing" />
-                            </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Printer" VerticalAlignment="Center" Margin="0,0,10,0" Width="24" Height="24" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                            <TextBlock Text="Target Printer:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
+                            <ComboBox ItemsSource="{Binding AvailablePrinters}"
+                                      SelectedItem="{Binding SelectedPrinter}"
+                                      materialDesign:HintAssist.Hint="Select a printer"
+                                      Width="320" Margin="0,0,15,0"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
+                            <Button Content="REFRESH" Command="{Binding RefreshPrintersCommand}" Style="{StaticResource MaterialDesignFlatButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,10,0"/>
+                            <Button Content="SYNC TO CLOUD" Command="{Binding SyncPrintersCommand}" Style="{StaticResource MaterialDesignOutlinedButton}"/>
                         </StackPanel>
                     </materialDesign:Card>
 
@@ -136,11 +132,8 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="AccessPointNetwork" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
-                            <TextBlock Text="MQTT:" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,5,0"/>
+                            <TextBlock Text="Active Connections (MQTT):" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,5,0"/>
                             <TextBlock Text="{Binding MqttStatus}" VerticalAlignment="Center" FontWeight="Bold"/>
-                            <Button Command="{Binding ManualConnectCommand}" Margin="10,0,0,0" ToolTip="Reconnect" Style="{StaticResource MaterialDesignIconButton}" Width="24" Height="24">
-                                <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16"/>
-                            </Button>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,15,0"/>
@@ -150,103 +143,198 @@
                 </Grid>
             </TabItem>
 
-            <!-- ═══════════════════════════ MQTT SETTINGS ════════════════════════ -->
+            <!-- ═══════════════════════════ PROFILES MANAGEMENT ════════════════════════ -->
             <TabItem>
                 <TabItem.Header>
                     <StackPanel>
-                        <materialDesign:PackIcon Kind="Wifi" HorizontalAlignment="Center" Width="24" Height="24"/>
-                        <TextBlock Text="MQTT" HorizontalAlignment="Center" FontSize="10"/>
+                        <materialDesign:PackIcon Kind="AccountMultiple" HorizontalAlignment="Center" Width="24" Height="24"/>
+                        <TextBlock Text="Profiles" HorizontalAlignment="Center" FontSize="10"/>
                     </StackPanel>
                 </TabItem.Header>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="40,20" MaxWidth="520" HorizontalAlignment="Left">
-                        <TextBlock Text="MQTT CONFIGURATION" Style="{StaticResource MaterialDesignHeadline5TextBlock}" Margin="0,0,0,20"/>
+                <Grid Margin="20">
+                    
+                    <!-- ── PROFILE LIST VIEW ── -->
+                    <Grid Visibility="{Binding IsProfileListViewVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <DockPanel Grid.Row="0" Margin="0,0,0,20">
+                            <TextBlock Text="PROFILE MANAGEMENT" Style="{StaticResource MaterialDesignHeadline5TextBlock}" VerticalAlignment="Center"/>
+                            <Button Command="{Binding NavigateToCreateCommand}" HorizontalAlignment="Right"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Height="40" Padding="16,0"
+                                    materialDesign:ButtonAssist.CornerRadius="20">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Plus" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="CREATE NEW PROFILE" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Button>
+                        </DockPanel>
 
-                        <TextBox materialDesign:HintAssist.Hint="Broker URL (e.g. mqtt.example.com)"
-                                 Text="{Binding MqttBroker, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+                        <ListBox Grid.Row="1" ItemsSource="{Binding ProfilesList}" HorizontalContentAlignment="Stretch" BorderThickness="0" Background="Transparent" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <materialDesign:Card Padding="15" Margin="0,5,0,10" materialDesign:ElevationAssist.Elevation="Dp1" UniformCornerRadius="6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/> <!-- Active Switch -->
+                                                <ColumnDefinition Width="Auto"/> <!-- Preview Switch -->
+                                                <ColumnDefinition Width="Auto"/> <!-- Connection Status -->
+                                                <ColumnDefinition Width="Auto"/> <!-- Actions -->
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <!-- Info Column -->
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="16"/>
+                                                <TextBlock Text="{Binding Profile.ApiBaseUrl}" FontSize="12" Opacity="0.5" Margin="0,2,0,0"/>
+                                            </StackPanel>
 
-                        <TextBox materialDesign:HintAssist.Hint="Username"
-                                 Text="{Binding MqttUsername, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+                                            <!-- Toggle Enable Switch -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
+                                                <TextBlock Text="Active" VerticalAlignment="Center" Opacity="0.6" Margin="0,0,8,0" FontSize="12"/>
+                                                <ToggleButton IsChecked="{Binding IsEnabled}" 
+                                                              Command="{Binding DataContext.ToggleProfileEnabledCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                              CommandParameter="{Binding}"
+                                                              Style="{StaticResource MaterialDesignSwitchToggleButton}"/>
+                                            </StackPanel>
 
-                        <PasswordBox materialDesign:HintAssist.Hint="Password"
-                                     local:PasswordHelper.Attach="True"
-                                     local:PasswordHelper.Password="{Binding MqttPassword, Mode=TwoWay}"
-                                     Style="{StaticResource MaterialDesignOutlinedPasswordBox}" Margin="0,0,0,15"/>
+                                            <!-- Toggle Print Preview Switch -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
+                                                <TextBlock Text="Preview" VerticalAlignment="Center" Opacity="0.6" Margin="0,0,8,0" FontSize="12"/>
+                                                <ToggleButton IsChecked="{Binding ShowPrintPreview}" 
+                                                              Command="{Binding DataContext.ToggleProfileShowPrintPreviewCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                              CommandParameter="{Binding}"
+                                                              Style="{StaticResource MaterialDesignSwitchToggleButton}"/>
+                                            </StackPanel>
 
-                        <TextBox materialDesign:HintAssist.Hint="Topic (fallback, overridden if authenticated)"
-                                 Text="{Binding MqttTopic, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+                                            <!-- Connection Status -->
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,20,0" Width="130">
+                                                <materialDesign:PackIcon Kind="AccessPointNetwork" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding MqttStatus}" VerticalAlignment="Center" FontWeight="Bold"/>
+                                            </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,30">
-                            <TextBox materialDesign:HintAssist.Hint="Reconnect Interval"
-                                     Text="{Binding ReconnectIntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="150"
-                                     Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,10,0"/>
-                            <TextBlock Text="Seconds" VerticalAlignment="Center" Opacity="0.6"/>
-                        </StackPanel>
+                                            <!-- Edit & Delete Buttons -->
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="EDIT" Command="{Binding DataContext.NavigateToEditCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource MaterialDesignFlatButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,10,0"/>
+                                                <Button Content="DELETE" Command="{Binding DataContext.DeleteProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource MaterialDesignFlatButton}" Foreground="Crimson"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </materialDesign:Card>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
 
-                        <Button Content="SAVE &amp; APPLY MQTT SETTINGS"
-                                Command="{Binding SaveMqttSettingsCommand}"
-                                Style="{StaticResource MaterialDesignRaisedButton}"
-                                Height="45" materialDesign:ButtonAssist.CornerRadius="22"/>
-                    </StackPanel>
-                </ScrollViewer>
+                    <!-- ── CREATE/EDIT PROFILE FORM ── -->
+                    <Grid Visibility="{Binding IsProfileFormViewVisible, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Header: Title & Save/Cancel buttons -->
+                            <RowDefinition Height="Auto"/> <!-- Profile Name & Preview toggle -->
+                            <RowDefinition Height="*"/>    <!-- Two-Column Layout -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Row 0: Header (Top Right Save/Cancel Buttons) -->
+                        <Grid Grid.Row="0" Margin="0,0,0,20">
+                            <TextBlock Text="{Binding FormTitle}" Style="{StaticResource MaterialDesignHeadline5TextBlock}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button Content="CANCEL" Command="{Binding NavigateBackCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" Width="120" Margin="0,0,15,0" Height="40" materialDesign:ButtonAssist.CornerRadius="20"/>
+                                <Button Content="SAVE PROFILE" Command="{Binding SaveProfileCommand}" Style="{StaticResource MaterialDesignRaisedButton}" Width="150" Height="40" materialDesign:ButtonAssist.CornerRadius="20"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Row 1: Profile Name & Preview toggle -->
+                        <Grid Grid.Row="1" Margin="0,0,0,25">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" materialDesign:HintAssist.Hint="Profile Name"
+                                     Text="{Binding EditingProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="25,0,0,0">
+                                <TextBlock Text="Show Print Preview:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
+                                <ToggleButton IsChecked="{Binding EditingShowPrintPreview}" Style="{StaticResource MaterialDesignSwitchToggleButton}" ToolTip="Show a preview window before printing" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Row 2: Two-Column Form -->
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="40"/> <!-- Spacing column -->
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left Column: MQTT Configuration -->
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="MQTT CONFIGURATION" Style="{StaticResource MaterialDesignHeadline6TextBlock}" Margin="0,0,0,15" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+
+                                    <TextBox materialDesign:HintAssist.Hint="Broker URL (e.g. broker.hivemq.com)"
+                                             Text="{Binding MqttBroker, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+
+                                    <TextBox materialDesign:HintAssist.Hint="Username"
+                                             Text="{Binding MqttUsername, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+
+                                    <PasswordBox materialDesign:HintAssist.Hint="Password"
+                                                 local:PasswordHelper.Attach="True"
+                                                 local:PasswordHelper.Password="{Binding MqttPassword, Mode=TwoWay}"
+                                                 Style="{StaticResource MaterialDesignOutlinedPasswordBox}" Margin="0,0,0,15"/>
+
+                                    <TextBox materialDesign:HintAssist.Hint="Topic (fallback, overridden if authenticated)"
+                                             Text="{Binding MqttTopic, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                        <TextBox materialDesign:HintAssist.Hint="Reconnect Interval"
+                                                 Text="{Binding ReconnectIntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
+                                                 Width="150"
+                                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,10,0"/>
+                                        <TextBlock Text="Seconds" VerticalAlignment="Center" Opacity="0.6"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                        <Button Content="TEST MQTT" Command="{Binding TestMqttConnectionCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" Width="120" Margin="0,0,15,0"/>
+                                        <TextBlock Text="{Binding MqttTestResult}" VerticalAlignment="Center" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- Right Column: API Configuration -->
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="API CONFIGURATION" Style="{StaticResource MaterialDesignHeadline6TextBlock}" Margin="0,0,0,15" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                    
+                                    <TextBox materialDesign:HintAssist.Hint="API Base URL (e.g. https://api.example.com)"
+                                             Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+
+                                    <TextBox materialDesign:HintAssist.Hint="Device Account ID"
+                                             Text="{Binding DeviceAccountId, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+
+                                    <PasswordBox materialDesign:HintAssist.Hint="API Secret"
+                                                 local:PasswordHelper.Attach="True"
+                                                 local:PasswordHelper.Password="{Binding ApiSecret, Mode=TwoWay}"
+                                                 Style="{StaticResource MaterialDesignOutlinedPasswordBox}" Margin="0,0,0,15"/>
+
+                                    <TextBox materialDesign:HintAssist.Hint="Device GUID (read-only)"
+                                             Text="{Binding DeviceGuid}"
+                                             IsReadOnly="True"
+                                             Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                        <Button Content="TEST API" Command="{Binding TestApiConnectionCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" Width="120" Margin="0,0,15,0"/>
+                                        <TextBlock Text="{Binding ApiTestResult}" VerticalAlignment="Center" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
             </TabItem>
-
-            <!-- ═══════════════════════════ CLOUD CONFIG ═════════════════════════ -->
-            <TabItem>
-                <TabItem.Header>
-                    <StackPanel>
-                        <materialDesign:PackIcon Kind="CloudLock" HorizontalAlignment="Center" Width="24" Height="24"/>
-                        <TextBlock Text="Cloud" HorizontalAlignment="Center" FontSize="10"/>
-                    </StackPanel>
-                </TabItem.Header>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="40,20" MaxWidth="520" HorizontalAlignment="Left">
-                        <TextBlock Text="CLOUD API CONFIGURATION" Style="{StaticResource MaterialDesignHeadline5TextBlock}" Margin="0,0,0,20"/>
-
-                        <TextBox materialDesign:HintAssist.Hint="API Base URL (e.g. https://api.example.com)"
-                                 Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <Button Content="TEST API"
-                                    Command="{Binding TestApiConnectionCommand}"
-                                    Style="{StaticResource MaterialDesignOutlinedButton}"
-                                    Width="120" Margin="0,0,15,0"/>
-                            <TextBlock Text="{Binding ApiTestResult}" VerticalAlignment="Center" FontWeight="Bold"/>
-                        </StackPanel>
-
-                        <TextBox materialDesign:HintAssist.Hint="Device Account ID"
-                                 Text="{Binding DeviceAccountId, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
-
-                        <PasswordBox materialDesign:HintAssist.Hint="API Secret"
-                                     local:PasswordHelper.Attach="True"
-                                     local:PasswordHelper.Password="{Binding ApiSecret, Mode=TwoWay}"
-                                     Style="{StaticResource MaterialDesignOutlinedPasswordBox}" Margin="0,0,0,15"/>
-
-                        <TextBox materialDesign:HintAssist.Hint="Device GUID (read-only)"
-                                 Text="{Binding DeviceGuid}"
-                                 IsReadOnly="True"
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,30"/>
-
-                        <Button Content="SAVE &amp; AUTHENTICATE"
-                                Command="{Binding SaveApiSettingsCommand}"
-                                Style="{StaticResource MaterialDesignRaisedButton}"
-                                Height="45" materialDesign:ButtonAssist.CornerRadius="22" Margin="0,0,0,15"/>
-
-                        <Button Content="DISCONNECT DEVICE (WIPE)"
-                                Command="{Binding WipeCredentialsCommand}"
-                                Style="{StaticResource MaterialDesignOutlinedButton}"
-                                Foreground="Crimson" BorderBrush="Crimson"
-                                Height="45" materialDesign:ButtonAssist.CornerRadius="22"/>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
         </TabControl>
 
         <!-- Notification Snackbar -->
