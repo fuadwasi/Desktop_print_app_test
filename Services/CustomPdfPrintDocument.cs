@@ -106,9 +106,10 @@ namespace PrintDesktopClient.Services
             double drawWidth = pdfWidth * scale;
             double drawHeight = pdfHeight * scale;
 
-            // Center PDF page inside printable area (marginBounds)
-            double left = marginBounds.Left + (marginBounds.Width - drawWidth) / 2.0;
-            double top = marginBounds.Top + (marginBounds.Height - drawHeight) / 2.0;
+            // Anchor PDF content to the top-left corner of the printable area.
+            // Do NOT centre — centring pushes POS content into the middle of the receipt roll.
+            double left = marginBounds.Left;
+            double top  = marginBounds.Top;
 
             // Convert back to pixels based on Graphics DPI
             int pixelX = ConvertToPixels(left, e.Graphics.DpiX);

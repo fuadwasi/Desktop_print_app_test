@@ -35,7 +35,7 @@ namespace PrintDesktopClient.Services
 
         // ── File Printing ─────────────────────────────────────────────────────
 
-        public bool PrintFile(string filePath, string printerName)
+        public bool PrintFile(string filePath, string printerName, ProfileSettings? profile = null)
         {
             try
             {
@@ -43,7 +43,7 @@ namespace PrintDesktopClient.Services
 
                 if (filePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                 {
-                    return PrintPdfFile(filePath, printerName);
+                    return PrintPdfFile(filePath, printerName, profile);
                 }
 
                 var psi = new ProcessStartInfo
@@ -77,21 +77,21 @@ namespace PrintDesktopClient.Services
         // ── PDF from byte[] (Cloud Job) ───────────────────────────────────────
 
         /// <summary>
-        /// Saves <paramref name="pdfBytes"/> to a temp file, prints it silently,
-        /// then deletes the temp file.
+        /// Saves <paramref name="pdfBytes"/> to a temp file, prints it silently
+        /// (applying <paramref name="profile"/>'s margin mode), then optionally deletes
+        /// the temp file.
         /// </summary>
-        public bool PrintPdfBytes(byte[] pdfBytes, string printerName)
+        public bool PrintPdfBytes(byte[] pdfBytes, string printerName, ProfileSettings? profile = null, bool deleteTempFile = true)
         {
             var tmp = Path.Combine(Path.GetTempPath(), $"print_{Guid.NewGuid()}.pdf");
             try
             {
                 File.WriteAllBytes(tmp, pdfBytes);
-                return PrintPdfFile(tmp, printerName);
+                return PrintPdfFile(tmp, printerName, profile);
             }
             finally
             {
-                // Privacy: always remove the temp file
-                if (File.Exists(tmp))
+                if (deleteTempFile && File.Exists(tmp))
                 {
                     Thread.Sleep(500); // Ensure printing has started before deletion
                     try { 
@@ -106,9 +106,9 @@ namespace PrintDesktopClient.Services
 
         /// <summary>
         /// Saves <paramref name="pdfBytes"/> to a temp file, prints it silently with advanced options,
-        /// then deletes the temp file.
+        /// then optionally deletes the temp file based on <paramref name="deleteTempFile"/>.
         /// </summary>
-        public bool PrintPdfBytes(byte[] pdfBytes, AdvancedPrintOptions options)
+        public bool PrintPdfBytes(byte[] pdfBytes, AdvancedPrintOptions options, bool deleteTempFile = true)
         {
             var tmp = Path.Combine(Path.GetTempPath(), $"print_{Guid.NewGuid()}.pdf");
             try
@@ -118,7 +118,7 @@ namespace PrintDesktopClient.Services
             }
             finally
             {
-                if (File.Exists(tmp))
+                if (deleteTempFile && File.Exists(tmp))
                 {
                     Thread.Sleep(500);
                     try { File.Delete(tmp); } catch { /* best-effort */ }
@@ -126,28 +126,52 @@ namespace PrintDesktopClient.Services
             }
         }
 
-        // ── PDF printing via Windows Shell (no external dependencies) ─────────
+        // ── PDF printing via PdfiumViewer / CustomPdfPrintDocument ─────────────
 
-        private bool PrintPdfFile(string pdfPath, string printerName)
+        /// <summary>
+        /// Resolves a <see cref="ProfileSettings"/> margin mode into the four margin integers
+        /// (in hundredths of an inch) and applies them to <paramref name="opts"/>.
+        /// </summary>
+        public static void ApplyProfileMargins(AdvancedPrintOptions opts, ProfileSettings? profile)
         {
-            try
+            if (profile == null) return;
+
+            const int NarrowMargin = 50; // 0.5 inch in hundredths
+
+            switch (profile.MarginMode)
             {
-                using (var document = PdfDocument.Load(pdfPath))
-                {
-                    using (var printDocument = document.CreatePrintDocument())
-                    {
-                        printDocument.PrinterSettings.PrinterName = printerName;
-                        printDocument.PrintController = new StandardPrintController(); // Silent printing
-                        printDocument.Print();
-                    }
-                }
-                return true;
+                case MarginMode.Narrow:
+                    opts.MarginTop    = NarrowMargin;
+                    opts.MarginBottom = NarrowMargin;
+                    opts.MarginLeft   = NarrowMargin;
+                    opts.MarginRight  = NarrowMargin;
+                    break;
+
+                case MarginMode.Custom:
+                    opts.MarginTop    = profile.MarginTop;
+                    opts.MarginBottom = profile.MarginBottom;
+                    opts.MarginLeft   = profile.MarginLeft;
+                    opts.MarginRight  = profile.MarginRight;
+                    break;
+
+                default: // MarginMode.Default — zero margins, top-left anchor
+                    opts.MarginTop    = 0;
+                    opts.MarginBottom = 0;
+                    opts.MarginLeft   = 0;
+                    opts.MarginRight  = 0;
+                    break;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"PDF printing failed: {ex.Message}");
-                return false;
-            }
+        }
+
+        /// <summary>
+        /// Prints a PDF file using <see cref="CustomPdfPrintDocument"/> so that the
+        /// top-left-anchor fix and any explicit margin mode are always applied.
+        /// </summary>
+        private bool PrintPdfFile(string pdfPath, string printerName, ProfileSettings? profile = null)
+        {
+            var opts = new AdvancedPrintOptions { PrinterName = printerName };
+            ApplyProfileMargins(opts, profile);
+            return PrintPdfFile(pdfPath, opts);
         }
 
         private bool PrintPdfFile(string pdfPath, AdvancedPrintOptions options)
@@ -171,6 +195,7 @@ namespace PrintDesktopClient.Services
                 return false;
             }
         }
+
 
         // ── Plain Text Printing (WPF FlowDocument) ────────────────────────────
 

@@ -9,6 +9,17 @@ using System.Linq;
 
 namespace PrintDesktopClient.Services
 {
+    /// <summary>Controls how margins are applied when printing PDF jobs for this profile.</summary>
+    public enum MarginMode
+    {
+        /// <summary>No extra margins — content anchored at the top-left of the printable area.</summary>
+        Default,
+        /// <summary>Minimal 50/100ths-inch (≈ 12.7 mm) margin on all sides.</summary>
+        Narrow,
+        /// <summary>Custom margins specified per-side in hundredths of an inch.</summary>
+        Custom
+    }
+
     public class ProfileSettings
     {
         public string Id { get; set; } = string.Empty;
@@ -22,6 +33,24 @@ namespace PrintDesktopClient.Services
         public int ReconnectIntervalSeconds { get; set; } = 10;
         public string SelectedPrinter { get; set; } = string.Empty;
         public bool ShowPrintPreview { get; set; } = false;
+
+        /// <summary>
+        /// When true (default), the temporary PDF file written during cloud-job printing
+        /// is deleted after the print job completes. Set to false to keep the file on disk.
+        /// </summary>
+        public bool DeleteTempFileAfterPrint { get; set; } = true;
+
+        // Print Margin
+        /// <summary>Margin mode applied to all PDF print jobs for this profile.</summary>
+        public MarginMode MarginMode { get; set; } = MarginMode.Default;
+        /// <summary>Top margin in hundredths of an inch (used when MarginMode is Custom or Narrow).</summary>
+        public int MarginTop    { get; set; } = 0;
+        /// <summary>Bottom margin in hundredths of an inch.</summary>
+        public int MarginBottom { get; set; } = 0;
+        /// <summary>Left margin in hundredths of an inch.</summary>
+        public int MarginLeft   { get; set; } = 0;
+        /// <summary>Right margin in hundredths of an inch.</summary>
+        public int MarginRight  { get; set; } = 0;
 
         // Cloud API
         public string ApiBaseUrl { get; set; } = "https://localhost:5001";

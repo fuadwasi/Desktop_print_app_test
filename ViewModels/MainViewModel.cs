@@ -28,6 +28,18 @@ namespace PrintDesktopClient.ViewModels
         [ObservableProperty] private string _mqttStatus = "Disconnected";
         [ObservableProperty] private string _selectedPrinter = string.Empty;
         [ObservableProperty] private bool _editingShowPrintPreview = false;
+        [ObservableProperty] private bool _editingDeleteTempFileAfterPrint = true;
+
+        // Margin Mode settings (bound to the profile form)
+        [ObservableProperty] private MarginMode _editingMarginMode = MarginMode.Default;
+        [ObservableProperty] private int  _editingMarginTop    = 0;
+        [ObservableProperty] private int  _editingMarginBottom = 0;
+        [ObservableProperty] private int  _editingMarginLeft   = 0;
+        [ObservableProperty] private int  _editingMarginRight  = 0;
+
+        // Visibility helper: true when Custom margin mode is selected
+        public bool IsCustomMarginVisible => EditingMarginMode == MarginMode.Custom;
+        partial void OnEditingMarginModeChanged(MarginMode value) => OnPropertyChanged(nameof(IsCustomMarginVisible));
 
         // Form View visibility bindings
         [ObservableProperty] private bool _isProfileListViewVisible = true;
@@ -184,6 +196,12 @@ namespace PrintDesktopClient.ViewModels
             MqttTopic = "home/printer/print";
             ReconnectIntervalSeconds = 10;
             EditingShowPrintPreview = false;
+            EditingDeleteTempFileAfterPrint = true;
+            EditingMarginMode   = MarginMode.Default;
+            EditingMarginTop    = 0;
+            EditingMarginBottom = 0;
+            EditingMarginLeft   = 0;
+            EditingMarginRight  = 0;
             ApiBaseUrl = "https://localhost:5001";
             DeviceAccountId = string.Empty;
             ApiSecret = string.Empty;
@@ -211,6 +229,12 @@ namespace PrintDesktopClient.ViewModels
             MqttTopic = profileVM.Profile.MqttTopic;
             ReconnectIntervalSeconds = profileVM.Profile.ReconnectIntervalSeconds;
             EditingShowPrintPreview = profileVM.Profile.ShowPrintPreview;
+            EditingDeleteTempFileAfterPrint = profileVM.Profile.DeleteTempFileAfterPrint;
+            EditingMarginMode   = profileVM.Profile.MarginMode;
+            EditingMarginTop    = profileVM.Profile.MarginTop;
+            EditingMarginBottom = profileVM.Profile.MarginBottom;
+            EditingMarginLeft   = profileVM.Profile.MarginLeft;
+            EditingMarginRight  = profileVM.Profile.MarginRight;
             ApiBaseUrl = profileVM.Profile.ApiBaseUrl;
             DeviceAccountId = profileVM.Profile.DeviceAccountId;
             ApiSecret = _configurationService.GetApiSecret(profileVM.Profile.Id);
@@ -275,6 +299,12 @@ namespace PrintDesktopClient.ViewModels
             profile.MqttTopic = MqttTopic;
             profile.ReconnectIntervalSeconds = ReconnectIntervalSeconds;
             profile.ShowPrintPreview = EditingShowPrintPreview;
+            profile.DeleteTempFileAfterPrint = EditingDeleteTempFileAfterPrint;
+            profile.MarginMode   = EditingMarginMode;
+            profile.MarginTop    = EditingMarginTop;
+            profile.MarginBottom = EditingMarginBottom;
+            profile.MarginLeft   = EditingMarginLeft;
+            profile.MarginRight  = EditingMarginRight;
             profile.ApiBaseUrl = ApiBaseUrl;
             profile.DeviceAccountId = DeviceAccountId;
             profile.DeviceGuid = DeviceGuid;
@@ -297,7 +327,6 @@ namespace PrintDesktopClient.ViewModels
             {
                 _configurationService.SaveSettings();
 
-                // Propagate property notifications
                 EditingProfileVM.Name = profile.Name;
                 EditingProfileVM.ShowPrintPreview = profile.ShowPrintPreview;
                 
@@ -439,7 +468,7 @@ namespace PrintDesktopClient.ViewModels
                     try
                     {
                         var pdfBytes = File.ReadAllBytes(filePath);
-                        var previewWindow = new PrintPreviewWindow(pdfBytes, AvailablePrinters.ToList(), SelectedPrinter);
+                        var previewWindow = new PrintPreviewWindow(pdfBytes, AvailablePrinters.ToList(), SelectedPrinter, activeProfile);
                         userConfirmed = previewWindow.ShowDialog() == true;
                         if (userConfirmed)
                         {
@@ -470,7 +499,7 @@ namespace PrintDesktopClient.ViewModels
             }
             else
             {
-                ok = _printerService.PrintFile(filePath, SelectedPrinter);
+                ok = _printerService.PrintFile(filePath, SelectedPrinter, activeProfile);
             }
 
             _notificationService.Notify(ok
@@ -543,7 +572,7 @@ namespace PrintDesktopClient.ViewModels
                     Dispatch(() =>
                     {
                         try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
-                        var previewWindow = new PrintPreviewWindow(pdfBytes, AvailablePrinters.ToList(), selectedPrinter);
+                        var previewWindow = new PrintPreviewWindow(pdfBytes, AvailablePrinters.ToList(), selectedPrinter, session.Profile);
                         userConfirmed = previewWindow.ShowDialog() == true;
                         if (userConfirmed)
                         {
@@ -563,13 +592,14 @@ namespace PrintDesktopClient.ViewModels
                 Dispatch(() => Logs.Add($"[{session.Profile.Name}] [JOB {jobId}] Downloaded {pdfBytes.Length:N0} bytes. Printing..."));
                 
                 bool printed = false;
+                bool deleteTmp = session.Profile.DeleteTempFileAfterPrint;
                 if (printOptions != null)
                 {
-                    printed = _printerService.PrintPdfBytes(pdfBytes, printOptions);
+                    printed = _printerService.PrintPdfBytes(pdfBytes, printOptions, deleteTmp);
                 }
                 else
                 {
-                    printed = _printerService.PrintPdfBytes(pdfBytes, selectedPrinter);
+                    printed = _printerService.PrintPdfBytes(pdfBytes, selectedPrinter, session.Profile, deleteTmp);
                 }
 
                 await session.ApiService.UpdateJobStatusAsync(jobId, printed,

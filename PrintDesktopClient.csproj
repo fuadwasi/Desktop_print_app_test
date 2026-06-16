@@ -9,6 +9,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
     <Version>1.1.0</Version>
+    <ApplicationIcon>Resources\Images\PDC_Icons\favicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,6 +50,48 @@
 
     <!-- Cryptography / Security (netstandard2.0 compatible version) -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Update="Resources\Images\full_logo.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_16x16.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_24x24.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_32x32.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_48x48.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_Icons\apple-touch-icon.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_Icons\favicon-96x96.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_Icons\favicon.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_Icons\favicon.svg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_Icons\site.webmanifest">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_Icons\web-app-manifest-192x192.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Update="Resources\Images\PDC_Icons\web-app-manifest-512x512.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
 </Project>

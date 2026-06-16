@@ -7,6 +7,8 @@
         xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:local="clr-namespace:PrintDesktopClient"
         xmlns:vm="clr-namespace:PrintDesktopClient.ViewModels"
+        xmlns:services="clr-namespace:PrintDesktopClient.Services"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="Auto-Print Agent" Height="750" Width="980"
@@ -21,6 +23,13 @@
         StateChanged="Window_StateChanged">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <ObjectDataProvider x:Key="MarginModeValues"
+                            MethodName="GetValues"
+                            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="services:MarginMode"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
     </Window.Resources>
     <Grid>
         <!-- Tray Icon -->
@@ -244,18 +253,26 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Row 1: Profile Name & Preview toggle -->
+                        <!-- Row 1: Profile Name & Behaviour toggles -->
                         <Grid Grid.Row="1" Margin="0,0,0,25">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0" materialDesign:HintAssist.Hint="Profile Name"
                                      Text="{Binding EditingProfileName, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                            <!-- Show Print Preview toggle -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="25,0,0,0">
                                 <TextBlock Text="Show Print Preview:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
                                 <ToggleButton IsChecked="{Binding EditingShowPrintPreview}" Style="{StaticResource MaterialDesignSwitchToggleButton}" ToolTip="Show a preview window before printing" />
+                            </StackPanel>
+                            <!-- Delete Temp File toggle -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="25,0,0,0">
+                                <TextBlock Text="Delete Temp File:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
+                                <ToggleButton IsChecked="{Binding EditingDeleteTempFileAfterPrint}" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                             ToolTip="When ON (default), the temporary PDF is deleted after printing. Turn OFF to keep the file on disk." />
                             </StackPanel>
                         </Grid>
 
@@ -329,12 +346,51 @@
                                         <Button Content="TEST API" Command="{Binding TestApiConnectionCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" Width="120" Margin="0,0,15,0"/>
                                         <TextBlock Text="{Binding ApiTestResult}" VerticalAlignment="Center" FontWeight="Bold"/>
                                     </StackPanel>
+
+                                    <!-- ── Print Margin ─────────────────────────────── -->
+                                    <TextBlock Text="PRINT MARGIN" Style="{StaticResource MaterialDesignHeadline6TextBlock}" Margin="0,10,0,8" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                    <TextBlock Text="Controls how margins are applied when printing PDF documents." FontSize="11" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="Margin Mode" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                    <ComboBox SelectedItem="{Binding EditingMarginMode}"
+                                              ItemsSource="{Binding Source={StaticResource MarginModeValues}}"
+                                              Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,0,0,12"/>
+
+                                    <!-- Custom margin fields — visible only when Custom is selected -->
+                                    <StackPanel Visibility="{Binding IsCustomMarginVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="Custom Margins (hundredths of an inch)" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                        <Grid Margin="0,0,0,5">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="10"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Grid.Row="0" Grid.Column="0" materialDesign:HintAssist.Hint="Top"
+                                                     Text="{Binding EditingMarginTop, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,8"/>
+                                            <TextBox Grid.Row="0" Grid.Column="2" materialDesign:HintAssist.Hint="Bottom"
+                                                     Text="{Binding EditingMarginBottom, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,8"/>
+                                            <TextBox Grid.Row="1" Grid.Column="0" materialDesign:HintAssist.Hint="Left"
+                                                     Text="{Binding EditingMarginLeft, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                                            <TextBox Grid.Row="1" Grid.Column="2" materialDesign:HintAssist.Hint="Right"
+                                                     Text="{Binding EditingMarginRight, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                                        </Grid>
+                                        <TextBlock Text="100 = 1 inch. e.g. 50 = 0.5 inch minimum margin." FontSize="11" Opacity="0.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
                         </ScrollViewer>
                     </Grid>
                 </Grid>
             </TabItem>
+
         </TabControl>
 
         <!-- Notification Snackbar -->
