@@ -91,6 +91,9 @@ namespace PrintDesktopClient
         private async void SyncPrinters_Click(object sender, RoutedEventArgs e)
             => await ((MainViewModel)DataContext).SyncPrinters();
 
+        private void About_Click(object sender, RoutedEventArgs e)
+            => OpenAboutWindow();
+
         private void Exit_Click(object sender, RoutedEventArgs e)
             => Application.Current.Shutdown();
 
@@ -102,6 +105,34 @@ namespace PrintDesktopClient
             WindowState   = WindowState.Normal;
             ShowInTaskbar = true;
             Activate();
+        }
+
+        // ── About ─────────────────────────────────────────────────────────────
+
+        private int _lastTabIndex = 0;
+
+        /// <summary>
+        /// Intercepts selection of the About tab and opens the About dialog instead,
+        /// then immediately restores the previously active tab.
+        /// </summary>
+        private void TabControl_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.TabControl tc && tc.SelectedItem == AboutTabItem)
+            {
+                // Prevent the About tab from visually staying selected
+                tc.SelectedIndex = _lastTabIndex;
+                OpenAboutWindow();
+            }
+            else if (sender is System.Windows.Controls.TabControl tc2 && tc2.SelectedItem != AboutTabItem)
+            {
+                _lastTabIndex = tc2.SelectedIndex;
+            }
+        }
+
+        private void OpenAboutWindow()
+        {
+            var about = new AboutWindow { Owner = this };
+            about.ShowDialog();
         }
     }
 }

@@ -47,6 +47,10 @@
                         <MenuItem.Icon><materialDesign:PackIcon Kind="Sync"/></MenuItem.Icon>
                     </MenuItem>
                     <Separator/>
+                    <MenuItem Header="About" Click="About_Click">
+                        <MenuItem.Icon><materialDesign:PackIcon Kind="InformationOutline"/></MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
                     <MenuItem Header="Exit" Click="Exit_Click">
                         <MenuItem.Icon><materialDesign:PackIcon Kind="ExitToApp"/></MenuItem.Icon>
                     </MenuItem>
@@ -54,7 +58,8 @@
             </tb:TaskbarIcon.ContextMenu>
         </tb:TaskbarIcon>
 
-        <TabControl Style="{StaticResource MaterialDesignNavigationRailTabControl}" TabStripPlacement="Left">
+        <TabControl Style="{StaticResource MaterialDesignNavigationRailTabControl}" TabStripPlacement="Left"
+                    SelectionChanged="TabControl_SelectionChanged">
 
             <!-- ═══════════════════════════ DASHBOARD ═══════════════════════════ -->
             <TabItem>
@@ -389,6 +394,18 @@
                         </ScrollViewer>
                     </Grid>
                 </Grid>
+            </TabItem>
+
+            <!-- ═══════════════════════════ ABOUT ═══════════════════════════ -->
+            <!-- This tab is last so it sits at the bottom of the nav rail.   -->
+            <TabItem x:Name="AboutTabItem">
+                <TabItem.Header>
+                    <StackPanel ToolTip="About">
+                        <materialDesign:PackIcon Kind="InformationOutline" HorizontalAlignment="Center" Width="24" Height="24"/>
+                        <TextBlock Text="About" HorizontalAlignment="Center" FontSize="10"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid/>
             </TabItem>
 
         </TabControl>

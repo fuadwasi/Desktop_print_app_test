@@ -139,3 +139,17 @@ secrets.json
 # ========================
 .dotnet/
 .tool-versions
+
+# ========================
+# Inno Setup / Installer Build
+# ========================
+# Compiled installer output (.exe) — large binary, not source
+SetupProject/Output/
+
+# Downloaded prerequisite installers (re-downloaded at build time)
+SetupProject/Prerequisites/
+
+# Legacy Visual Studio setup project build artifacts
+SetupProject/PrintDesktopClientSetup/
+
+# Note: SetupProject/PrintDesktopClient.iss IS tracked (it is source code)

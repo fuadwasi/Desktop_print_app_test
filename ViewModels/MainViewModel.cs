@@ -284,7 +284,7 @@ namespace PrintDesktopClient.ViewModels
                 profile = new ProfileSettings
                 {
                     Id = Guid.NewGuid().ToString(),
-                    IsEnabled = true // Active by default
+                    IsEnabled = false // Inactive by default — user must configure and enable manually
                 };
             }
             else
@@ -667,8 +667,15 @@ namespace PrintDesktopClient.ViewModels
         }
 
 
-        private static void Dispatch(Action action) =>
-            System.Windows.Application.Current.Dispatcher.Invoke(action);
+        private static void Dispatch(Action action)
+        {
+            // Application.Current can be null when the app is shutting down and a
+            // background MQTT thread fires an event after WPF has begun teardown.
+            // Guard against this to avoid NullReferenceException.
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null) return;
+            dispatcher.Invoke(action);
+        }
 
         private class HttpClientFactoryShim : IHttpClientFactory
         {
